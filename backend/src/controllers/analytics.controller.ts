@@ -45,6 +45,7 @@ export const getSurveyAnalytics = async (req: AuthRequest, res: Response, next: 
         const answerCount = answers.length;
 
         let distribution: Record<string, number> = {};
+        let textResponses: string[] = [];
 
         if (['RADIO', 'DROPDOWN', 'YES_NO'].includes(question.type)) {
           answers.forEach((val) => {
@@ -70,6 +71,12 @@ export const getSurveyAnalytics = async (req: AuthRequest, res: Response, next: 
             const key = String(val);
             distribution[key] = (distribution[key] || 0) + 1;
           });
+        } else {
+          // Collect text responses (e.g. for SHORT_TEXT, LONG_TEXT, EMAIL, etc.)
+          textResponses = answers
+            .filter((val) => val !== null && val !== undefined && val !== '')
+            .map((val) => (typeof val === 'object' ? JSON.stringify(val) : String(val)))
+            .slice(-30); // Return up to last 30 responses
         }
 
         return {
@@ -80,6 +87,7 @@ export const getSurveyAnalytics = async (req: AuthRequest, res: Response, next: 
           totalAnswers: answerCount,
           responseRate: totalResponses > 0 ? Math.round((answerCount / totalResponses) * 100) : 0,
           distribution,
+          textResponses,
         };
       })
     );

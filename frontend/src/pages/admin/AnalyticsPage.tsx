@@ -127,25 +127,26 @@ export default function AnalyticsPage() {
       <div className="space-y-4">
         <h3 className="font-semibold text-slate-800">Question-wise Analysis</h3>
         {questionAnalysis
-          .filter((q: { distribution: Record<string, number> }) => Object.keys(q.distribution).length > 0)
-          .slice(0, 10)
-          .map((q: { questionId: string; questionTitle: string; questionType: string; totalAnswers: number; responseRate: number; distribution: Record<string, number> }) => {
-            const chartData = Object.entries(q.distribution).map(([key, count]) => ({ name: key, count }));
+          .filter((q: any) => Object.keys(q.distribution).length > 0 || (q.textResponses && q.textResponses.length > 0))
+          .map((q: any) => {
+            const chartData = Object.entries(q.distribution || {}).map(([key, count]) => ({ name: key, count }));
             return (
               <div key={q.questionId} className="card">
                 <div className="flex items-start justify-between mb-3">
-                  <div>
+                  <div className="flex-1 mr-4">
                     <p className="font-medium text-slate-800 text-sm">{q.questionTitle}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">{q.totalAnswers} answers · {q.responseRate}% response rate</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{q.totalAnswers} answers · {q.responseRate}% response rate · Section: {q.sectionTitle}</p>
                   </div>
-                  <span className="badge badge-info text-xs">{q.questionType}</span>
+                  <span className="badge badge-info text-xs flex-shrink-0">{q.questionType}</span>
                 </div>
+                
+                {/* Categorical questions visualization (Bar Chart) */}
                 {chartData.length > 0 && (
                   <ResponsiveContainer width="100%" height={160}>
                     <BarChart data={chartData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
+                      <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                      <YAxis tick={{ fontSize: 10 }} />
                       <Tooltip />
                       <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                         {chartData.map((_, i) => (
@@ -154,6 +155,20 @@ export default function AnalyticsPage() {
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
+                )}
+
+                {/* Text responses visualization (List) */}
+                {q.textResponses && q.textResponses.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Latest Responses:</p>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1 border border-slate-100 rounded-lg p-3 bg-slate-50">
+                      {q.textResponses.map((resp: string, idx: number) => (
+                        <div key={idx} className="text-xs text-slate-700 bg-white p-2.5 rounded border border-slate-100 shadow-sm break-words leading-relaxed">
+                          {resp}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
             );
