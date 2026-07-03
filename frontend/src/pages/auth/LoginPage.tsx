@@ -100,11 +100,8 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-4 p-3 bg-slate-50 rounded-lg">
-            <p className="text-xs text-slate-500 text-center">
-              Demo credentials: <span className="font-medium text-slate-700">admin@rsms.com</span> / <span className="font-medium text-slate-700">Admin@123456</span>
-            </p>
-          </div>
+
+
         </div>
 
         <p className="text-center text-sm text-slate-500 mt-6">
