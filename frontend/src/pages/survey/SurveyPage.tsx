@@ -145,7 +145,7 @@ export default function SurveyPage() {
     const newErrors: Record<string, string> = {};
 
     currentSection.questions?.forEach((q: Question) => {
-      if (q.isRequired && isQuestionVisible(q)) {
+      if (isQuestionVisible(q)) {
         const val = answers[q.id];
         if (val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)) {
           newErrors[q.id] = 'This field is required';
