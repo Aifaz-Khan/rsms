@@ -15,6 +15,7 @@ export default function SurveyPage() {
 
   const [responseId, setResponseId] = useState<string | null>(null);
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
+  const [sectionHistory, setSectionHistory] = useState<number[]>([0]);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -65,7 +66,10 @@ export default function SurveyPage() {
         // Restore section
         if (response.currentSectionId) {
           const sectionIdx = sections.findIndex((s) => s.id === response.currentSectionId);
-          if (sectionIdx >= 0) setCurrentSectionIndex(sectionIdx);
+          if (sectionIdx >= 0) {
+            setCurrentSectionIndex(sectionIdx);
+            setSectionHistory([sectionIdx]);
+          }
         }
       } catch (err) {
         console.error('Failed to initialize survey:', err);
@@ -197,6 +201,7 @@ export default function SurveyPage() {
     if (nextIdx >= sections.length) {
       await handleSubmit();
     } else {
+      setSectionHistory((prev) => [...prev, nextIdx]);
       setCurrentSectionIndex(nextIdx);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -204,8 +209,17 @@ export default function SurveyPage() {
 
   const handlePrev = async () => {
     await saveAnswers(false);
-    setCurrentSectionIndex((prev) => Math.max(0, prev - 1));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setSectionHistory((prev) => {
+      if (prev.length <= 1) {
+        setCurrentSectionIndex(0);
+        return [0];
+      }
+      const newHistory = prev.slice(0, -1);
+      const prevIdx = newHistory[newHistory.length - 1];
+      setCurrentSectionIndex(prevIdx);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return newHistory;
+    });
   };
 
   const handleSubmit = async () => {
@@ -227,10 +241,13 @@ export default function SurveyPage() {
     }
   };
 
-  const totalQuestions = sections.reduce((acc, s) => acc + (s.questions?.length || 0), 0);
-  const answeredQuestions = Object.keys(answers).length;
-  const completedSections = currentSectionIndex;
-  const progressPercent = sections.length > 0 ? Math.round((completedSections / sections.length) * 100) : 0;
+  const visibleQuestionsInCurrentSection = currentSection?.questions?.filter(isQuestionVisible) || [];
+  const currentSectionQuestionsTotal = visibleQuestionsInCurrentSection.length;
+  const currentSectionQuestionsAnswered = visibleQuestionsInCurrentSection.filter((q) => {
+    const val = answers[q.id];
+    return val !== undefined && val !== null && val !== '' && !(Array.isArray(val) && val.length === 0);
+  }).length;
+  const currentStep = sectionHistory.length;
 
   if (isLoading) {
     return (
@@ -278,10 +295,10 @@ export default function SurveyPage() {
             </div>
           </div>
           <SurveyProgressBar
-            percent={progressPercent}
-            answered={answeredQuestions}
-            total={totalQuestions}
-            currentSection={currentSection?.title}
+            currentSectionTitle={currentSection?.title || ''}
+            answered={currentSectionQuestionsAnswered}
+            total={currentSectionQuestionsTotal}
+            currentStep={currentStep}
           />
         </div>
       </header>
@@ -328,7 +345,7 @@ export default function SurveyPage() {
               <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-100">
                 <button
                   onClick={handlePrev}
-                  disabled={currentSectionIndex === 0}
+                  disabled={sectionHistory.length <= 1}
                   className="btn-secondary disabled:opacity-40"
                 >
                   <ChevronLeft className="w-4 h-4" /> Previous
