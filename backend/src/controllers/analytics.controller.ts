@@ -136,3 +136,49 @@ export const getSurveyAnalytics = async (req: AuthRequest, res: Response, next: 
     next(error);
   }
 };
+
+function extractSense(title: string): string {
+  const lower = title.toLowerCase();
+  if (lower.includes('eye')) return 'Eyes';
+  if (lower.includes('ear')) return 'Ears';
+  if (lower.includes('nose') || lower.includes('nasal') || lower.includes('smell')) return 'Nose';
+  if (lower.includes('tongue') || lower.includes('taste') || lower.includes('oral')) return 'Tongue';
+  if (lower.includes('skin') || lower.includes('touch')) return 'Skin';
+  return 'unknown';
+}
+
+export const getPrimaryScores = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    // Fetch all answers for YES_NO type questions
+    const answers = await prisma.answer.findMany({
+      include: { question: { select: { title: true, type: true } } },
+      where: { question: { type: 'YES_NO' } },
+    });
+
+    // Aggregate per sense
+    const senseMap: Record<string, { yes: number; no: number; total: number }> = {};
+
+    answers.forEach((a) => {
+      const sense = extractSense(a.question.title);
+      if (sense === 'unknown') return;
+      if (!senseMap[sense]) senseMap[sense] = { yes: 0, no: 0, total: 0 };
+      const val = String(a.value).toLowerCase().trim();
+      senseMap[sense].total += 1;
+      if (val === 'yes') senseMap[sense].yes += 1;
+      else if (val === 'no') senseMap[sense].no += 1;
+    });
+
+    const result = Object.entries(senseMap).map(([sense, { yes, no, total }]) => ({
+      sense,
+      yesCount: yes,
+      noCount: no,
+      total,
+      yesPercent: total > 0 ? Math.round((yes / total) * 100) : 0,
+      noPercent: total > 0 ? Math.round((no / total) * 100) : 0,
+    }));
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};

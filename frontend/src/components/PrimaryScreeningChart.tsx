@@ -35,11 +35,12 @@ export default function PrimaryScreeningChart() {
     return <div className="text-center text-sm text-red-600">Failed to load primary scores.</div>;
   }
 
-  const chartData = data?.map((d: any) => ({
+  // Transform API data to chart‑friendly format
+  const chartData = (data?.data?.data || data?.data || []).map((d: any) => ({
     sense: d.sense,
     Yes: d.yesCount,
     No: d.noCount,
-  })) || [];
+  }));
 
   return (
     <div className="card">
