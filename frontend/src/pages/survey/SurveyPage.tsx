@@ -318,7 +318,20 @@ export default function SurveyPage() {
               <div className="mb-6">
                 <h2 className="text-xl font-bold text-slate-900">{currentSection.title}</h2>
                 {currentSection.description && (
-                  <p className="text-slate-500 text-sm mt-1">{currentSection.description}</p>
+                  <p className="text-slate-500 text-sm mt-1 mb-2">{currentSection.description}</p>
+                )}
+                
+                {currentSection.title.toLowerCase().match(/detailed|professional|manas/) && (
+                  <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 text-xs text-slate-600 space-y-2 shadow-sm mt-3">
+                    <p className="font-semibold text-slate-800 text-sm border-b border-slate-200/60 pb-1.5">Response Frequency Guide:</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
+                      <div><span className="font-semibold text-slate-800">Never:</span> Did not experience the symptom or exposure at all during the past 6 months.</div>
+                      <div><span className="font-semibold text-slate-800">Rarely:</span> Experienced it 6–12 times during the past 6 months.</div>
+                      <div><span className="font-semibold text-slate-800">Sometimes:</span> Experienced it about once a week (3–4 times in a month).</div>
+                      <div><span className="font-semibold text-slate-800">Often:</span> Experienced it 2–6 times per week.</div>
+                      <div className="md:col-span-2"><span className="font-semibold text-slate-800">Always:</span> Experienced it every day or almost every day.</div>
+                    </div>
+                  </div>
                 )}
               </div>
 
