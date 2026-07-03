@@ -50,7 +50,7 @@ export default function LandingPage() {
             A professional, configurable survey platform designed for medical research, academic studies, and institutional data collection. Build, deploy, and analyze surveys with ease.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link to="/survey/ayurvedic-medical-research-2024" className="btn-primary px-6 py-3 text-base">
+            <Link to="/survey/ayurgram-3-0" className="btn-primary px-6 py-3 text-base">
               Take the Ayurvedic Survey <ArrowRight className="w-4 h-4" />
             </Link>
             <Link to="/login" className="btn-secondary px-6 py-3 text-base">
@@ -106,8 +106,8 @@ export default function LandingPage() {
                   <BarChart3 className="w-4 h-4 text-primary-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-800">Ayurvedic Medical Research Survey</p>
-                  <p className="text-xs text-slate-500">10 sections · 50+ questions · Active</p>
+                  <p className="text-sm font-medium text-slate-800">Ayurgrama Indriya Arogya Survey 3.0</p>
+                  <p className="text-xs text-slate-500">20 sections · 130+ questions · Active</p>
                 </div>
                 <span className="ml-auto badge badge-success">Live</span>
               </div>
@@ -189,7 +189,7 @@ export default function LandingPage() {
             Contact us to set up your research survey or participate in our ongoing Ayurvedic Medical Research Study.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link to="/survey/ayurvedic-medical-research-2024" className="inline-flex items-center gap-2 px-6 py-3 bg-white text-primary-700 font-medium rounded-lg hover:bg-primary-50 transition-colors">
+            <Link to="/survey/ayurgram-3-0" className="inline-flex items-center gap-2 px-6 py-3 bg-white text-primary-700 font-medium rounded-lg hover:bg-primary-50 transition-colors">
               Participate in Survey <ArrowRight className="w-4 h-4" />
             </Link>
             <a href="mailto:contact@rsms.com" className="inline-flex items-center gap-2 px-6 py-3 border border-primary-400 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors">
