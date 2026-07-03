@@ -23,6 +23,7 @@ export const surveyApi = {
   getQRCode: (id: string) => api.get(`/surveys/${id}/qrcode`),
   publish: (id: string) => api.patch(`/surveys/${id}/publish`),
   archive: (id: string) => api.patch(`/surveys/${id}/archive`),
+  getActiveList: () => api.get('/surveys/active/list'),
 };
 
 export const sectionApi = {

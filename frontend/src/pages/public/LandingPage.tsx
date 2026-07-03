@@ -2,6 +2,8 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Shield, BarChart3, Users, Clock, CheckCircle, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { surveyApi } from '../../api';
 
 const stats = [
   { label: 'Surveys Created', value: '500+' },
@@ -28,6 +30,13 @@ const faqs = [
 export default function LandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
+  const { data: surveysData, isLoading } = useQuery({
+    queryKey: ['activeSurveys'],
+    queryFn: () => surveyApi.getActiveList(),
+  });
+
+  const activeSurveys = surveysData?.data?.data || [];
+
   return (
     <div className="bg-medical-light">
       {/* Hero */}
@@ -50,9 +59,15 @@ export default function LandingPage() {
             A professional, configurable survey platform designed for medical research, academic studies, and institutional data collection. Build, deploy, and analyze surveys with ease.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link to="/survey/ayurgram-3-0" className="btn-primary px-6 py-3 text-base">
-              Take the Ayurvedic Survey <ArrowRight className="w-4 h-4" />
-            </Link>
+            {activeSurveys.length > 0 ? (
+              <Link to={`/survey/${activeSurveys[0].slug}`} className="btn-primary px-6 py-3 text-base">
+                Take the Active Survey <ArrowRight className="w-4 h-4" />
+              </Link>
+            ) : (
+              <a href="#surveys" className="btn-primary px-6 py-3 text-base">
+                View Surveys <ArrowRight className="w-4 h-4" />
+              </a>
+            )}
             <Link to="/login" className="btn-secondary px-6 py-3 text-base">
               Admin Login
             </Link>
@@ -126,6 +141,46 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Active Surveys List */}
+      <section id="surveys" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 bg-slate-50 rounded-2xl my-8 border border-slate-100">
+        <div className="text-center mb-10">
+          <h2 className="text-3xl font-bold text-slate-900 mb-3">Active Research Surveys</h2>
+          <p className="text-slate-600 max-w-xl mx-auto">Select a survey below to participate in our ongoing research studies. No account creation required.</p>
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="w-8 h-8 border-2 border-primary-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : activeSurveys.length > 0 ? (
+          <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+            {activeSurveys.map((survey: any) => (
+              <div key={survey.id} className="bg-white rounded-xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="badge badge-success">Live</span>
+                    <span className="text-xs text-slate-400 font-medium">{(survey._count?.sections ?? 0)} Sections</span>
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-800 mb-2">{survey.title}</h3>
+                  <p className="text-sm text-slate-500 mb-4 line-clamp-3">{survey.description || 'No description provided.'}</p>
+                </div>
+                <Link
+                  to={`/survey/${survey.slug}`}
+                  className="inline-flex items-center justify-center gap-2 w-full px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-semibold hover:bg-primary-700 transition-colors mt-2"
+                >
+                  Start Survey <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 bg-white rounded-xl border border-slate-100 max-w-md mx-auto">
+            <p className="text-slate-500 font-medium mb-1">No surveys are active right now</p>
+            <p className="text-xs text-slate-400">Please check back later or contact the research team.</p>
+          </div>
+        )}
+      </section>
+
       {/* Features */}
       <section id="features" className="bg-white border-y border-slate-100 py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -189,9 +244,15 @@ export default function LandingPage() {
             Contact us to set up your research survey or participate in our ongoing Ayurvedic Medical Research Study.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link to="/survey/ayurgram-3-0" className="inline-flex items-center gap-2 px-6 py-3 bg-white text-primary-700 font-medium rounded-lg hover:bg-primary-50 transition-colors">
-              Participate in Survey <ArrowRight className="w-4 h-4" />
-            </Link>
+            {activeSurveys.length > 0 ? (
+              <Link to={`/survey/${activeSurveys[0].slug}`} className="inline-flex items-center gap-2 px-6 py-3 bg-white text-primary-700 font-medium rounded-lg hover:bg-primary-50 transition-colors">
+                Participate in Survey <ArrowRight className="w-4 h-4" />
+              </Link>
+            ) : (
+              <a href="#surveys" className="inline-flex items-center gap-2 px-6 py-3 bg-white text-primary-700 font-medium rounded-lg hover:bg-primary-50 transition-colors">
+                View Active Surveys <ArrowRight className="w-4 h-4" />
+              </a>
+            )}
             <a href="mailto:contact@rsms.com" className="inline-flex items-center gap-2 px-6 py-3 border border-primary-400 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors">
               Contact Us
             </a>

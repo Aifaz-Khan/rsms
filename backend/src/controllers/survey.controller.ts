@@ -1,4 +1,4 @@
-import { Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import prisma from '../config/database';
 import { createError } from '../middlewares/errorHandler';
@@ -284,6 +284,29 @@ export const archiveSurvey = async (req: AuthRequest, res: Response, next: NextF
       data: { status: 'ARCHIVED' },
     });
     res.json({ success: true, data: survey });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getActiveSurveys = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const surveys = await prisma.survey.findMany({
+      where: {
+        status: 'PUBLISHED',
+        isPublic: true,
+      },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        slug: true,
+        createdAt: true,
+        _count: { select: { sections: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ success: true, data: surveys });
   } catch (error) {
     next(error);
   }

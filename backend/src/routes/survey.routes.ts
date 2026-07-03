@@ -1,10 +1,11 @@
 import { Router } from 'express';
-import { getSurveys, getSurveyById, getSurveyBySlug, createSurvey, updateSurvey, deleteSurvey, duplicateSurvey, getSurveyQRCode, publishSurvey, archiveSurvey } from '../controllers/survey.controller';
+import { getSurveys, getSurveyById, getSurveyBySlug, createSurvey, updateSurvey, deleteSurvey, duplicateSurvey, getSurveyQRCode, publishSurvey, archiveSurvey, getActiveSurveys } from '../controllers/survey.controller';
 import { authenticate, authorize } from '../middlewares/auth.middleware';
 
 const router = Router();
 
 router.get('/', authenticate, getSurveys);
+router.get('/active/list', getActiveSurveys);
 router.get('/slug/:slug', getSurveyBySlug);
 router.get('/:id', authenticate, getSurveyById);
 router.post('/', authenticate, authorize('ADMIN', 'RESEARCHER'), createSurvey);
