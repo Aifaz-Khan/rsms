@@ -5,8 +5,9 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 
 export const getSections = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    const surveyId = req.params.surveyId || (req.query.surveyId as string);
     const sections = await prisma.section.findMany({
-      where: { surveyId: req.params.surveyId },
+      where: { surveyId },
       orderBy: { order: 'asc' },
       include: { _count: { select: { questions: true } } },
     });
@@ -18,7 +19,7 @@ export const getSections = async (req: AuthRequest, res: Response, next: NextFun
 
 export const createSection = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { surveyId } = req.params;
+    const surveyId = req.params.surveyId || req.body.surveyId;
     const { title, description, isVisible } = req.body;
 
     const lastSection = await prisma.section.findFirst({

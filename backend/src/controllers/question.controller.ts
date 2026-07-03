@@ -5,8 +5,9 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 
 export const getQuestions = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    const sectionId = req.params.sectionId || (req.query.sectionId as string);
     const questions = await prisma.question.findMany({
-      where: { sectionId: req.params.sectionId },
+      where: { sectionId },
       orderBy: { order: 'asc' },
       include: { options: { orderBy: { order: 'asc' } } },
     });
@@ -18,7 +19,7 @@ export const getQuestions = async (req: AuthRequest, res: Response, next: NextFu
 
 export const createQuestion = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { sectionId } = req.params;
+    const sectionId = req.params.sectionId || req.body.sectionId;
     const { type, title, description, placeholder, helpText, tooltip, isRequired, defaultValue, validation, settings, options } = req.body;
 
     const lastQuestion = await prisma.question.findFirst({
