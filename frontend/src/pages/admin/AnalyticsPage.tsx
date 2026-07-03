@@ -12,11 +12,12 @@ import {
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import PrimaryScreeningChart from '../../components/PrimaryScreeningChart';
+import FrequencyDistributionChart from '../../components/FrequencyDistributionChart';
 const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
 export default function AnalyticsPage() {
   const { surveyId } = useParams<{ surveyId: string }>();
-  const [activeView, setActiveView] = useState<'summary' | 'camp' | 'primary'>('summary');
+  const [activeView, setActiveView] = useState<'summary' | 'camp' | 'primary' | 'frequency'>('summary');
 
   const { data, isLoading } = useQuery({
     queryKey: ['analytics', surveyId],
@@ -183,6 +184,15 @@ export default function AnalyticsPage() {
           )}
         >
           <Award className="w-4 h-4" /> Primary Screening Scores
+        </button>
+        <button
+          onClick={() => setActiveView('frequency')}
+          className={clsx(
+            'flex items-center gap-2 px-4 py-1.5 text-sm font-medium rounded-md transition-colors',
+            activeView === 'frequency' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+          )}
+        >
+          <ShieldAlert className="w-4 h-4 text-amber-500" /> Frequency Analysis
         </button>
       </div>
 
@@ -414,6 +424,7 @@ export default function AnalyticsPage() {
         </div>
       )}
       {activeView === 'primary' && <PrimaryScreeningChart />}
+      {activeView === 'frequency' && <FrequencyDistributionChart />}
     </div>
   );
 }

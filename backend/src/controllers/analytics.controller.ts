@@ -194,3 +194,57 @@ export const getPrimaryScores = async (req: AuthRequest, res: Response, next: Ne
     next(error);
   }
 };
+
+/**
+ * Returns the overall distribution of frequency answers (Always / Often / Sometimes / Rarely / Never)
+ * aggregated across ALL common frequency-type questions (excluding yes/no questions).
+ * Also returns per-question breakdown for top questions.
+ */
+export const getFrequencyDistribution = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const FREQ_VALUES = ['always', 'often', 'sometimes', 'rarely', 'never'];
+
+    const answers = await prisma.answer.findMany({
+      where: { question: { type: 'RADIO' } },
+      include: { question: { select: { title: true } } },
+    });
+
+    // Keep only frequency-type answers (not yes/no)
+    const freqAnswers = answers.filter((a) =>
+      FREQ_VALUES.includes(String(a.value).toLowerCase().trim())
+    );
+
+    // ── 1. Overall distribution (for pie chart) ──────────────────────────
+    const overall: Record<string, number> = { Always: 0, Often: 0, Sometimes: 0, Rarely: 0, Never: 0 };
+    freqAnswers.forEach((a) => {
+      const val = String(a.value).trim();
+      const key = val.charAt(0).toUpperCase() + val.slice(1).toLowerCase();
+      if (key in overall) overall[key] += 1;
+    });
+
+    const overallData = Object.entries(overall).map(([label, count]) => ({ label, count }));
+
+    // ── 2. Per-question distribution (top 10 by response count) ──────────
+    const questionMap: Record<string, Record<string, number>> = {};
+    freqAnswers.forEach((a) => {
+      const title = a.question.title;
+      const val = String(a.value).trim();
+      const key = val.charAt(0).toUpperCase() + val.slice(1).toLowerCase();
+      if (!questionMap[title]) questionMap[title] = { Always: 0, Often: 0, Sometimes: 0, Rarely: 0, Never: 0 };
+      if (key in questionMap[title]) questionMap[title][key] += 1;
+    });
+
+    const perQuestion = Object.entries(questionMap)
+      .map(([question, dist]) => ({
+        question,
+        total: Object.values(dist).reduce((s, v) => s + v, 0),
+        ...dist,
+      }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10);
+
+    res.json({ success: true, data: { overall: overallData, perQuestion } });
+  } catch (error) {
+    next(error);
+  }
+};
