@@ -116,12 +116,32 @@ export default function SurveyPage() {
     }
   };
 
+  const isQuestionVisible = (question: Question): boolean => {
+    // 1. "Are you? (For Non-teaching staff)" depends on "Are you.." being "non_teaching_staff"
+    if (question.title.startsWith('Are you? (For Non-teaching')) {
+      const roleQuestion = currentSection?.questions?.find(q => q.title.startsWith('Are you..'));
+      if (roleQuestion) {
+        return answers[roleQuestion.id] === 'non_teaching_staff';
+      }
+    }
+    // 2. "If yes, please specify" depends on the preceding chronic illness/taste/skin question being "yes"
+    if (question.title.toLowerCase().startsWith('if yes, please specify') || question.title.toLowerCase().startsWith('if yes, then')) {
+      const prevQuestion = currentSection?.questions?.find(q => 
+        q.title.toLowerCase().includes('chronic') || q.title.toLowerCase().includes('difficulty') || q.title.toLowerCase().includes('disorder')
+      );
+      if (prevQuestion) {
+        return answers[prevQuestion.id] === 'yes';
+      }
+    }
+    return true;
+  };
+
   const validateSection = (): boolean => {
     if (!currentSection) return true;
     const newErrors: Record<string, string> = {};
 
     currentSection.questions?.forEach((q: Question) => {
-      if (q.isRequired) {
+      if (q.isRequired && isQuestionVisible(q)) {
         const val = answers[q.id];
         if (val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)) {
           newErrors[q.id] = 'This field is required';
@@ -137,7 +157,13 @@ export default function SurveyPage() {
   const getNextSectionIndex = (): number => {
     if (!survey?.surveyLogic || !currentSection) return currentSectionIndex + 1;
 
-    for (const logic of survey.surveyLogic as SurveyLogic[]) {
+    // Filter logic rules to only those where the condition question belongs to the current section
+    const currentQuestionIds = currentSection.questions?.map((q) => q.id) || [];
+    const relevantLogic = (survey.surveyLogic as SurveyLogic[]).filter((logic) =>
+      currentQuestionIds.includes(logic.conditionQuestionId)
+    );
+
+    for (const logic of relevantLogic) {
       const answer = answers[logic.conditionQuestionId];
       let conditionMet = false;
 
@@ -281,7 +307,7 @@ export default function SurveyPage() {
 
               {/* Questions */}
               <div className="space-y-4">
-                {currentSection.questions?.map((question: Question, idx: number) => (
+                {currentSection.questions?.filter(isQuestionVisible).map((question: Question, idx: number) => (
                   <motion.div
                     key={question.id}
                     initial={{ opacity: 0, y: 10 }}
