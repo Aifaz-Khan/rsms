@@ -196,9 +196,9 @@ export const getPrimaryScores = async (req: AuthRequest, res: Response, next: Ne
 };
 
 /**
- * Returns the overall distribution of frequency answers (Always / Often / Sometimes / Rarely / Never)
- * aggregated across ALL common frequency-type questions (excluding yes/no questions).
- * Also returns per-question breakdown for top questions.
+ * Returns frequency answer distribution (Always/Often/Sometimes/Rarely/Never)
+ * grouped by sense (Eyes, Ears, Nose, Tongue, Skin, General).
+ * Yes/No answers are excluded.
  */
 export const getFrequencyDistribution = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -214,36 +214,50 @@ export const getFrequencyDistribution = async (req: AuthRequest, res: Response, 
       FREQ_VALUES.includes(String(a.value).toLowerCase().trim())
     );
 
-    // ── 1. Overall distribution (for pie chart) ──────────────────────────
-    const overall: Record<string, number> = { Always: 0, Often: 0, Sometimes: 0, Rarely: 0, Never: 0 };
+    function extractSenseFreq(title: string): string {
+      const lower = title.toLowerCase();
+      if (lower.includes('eye') || lower.includes('vision') || lower.includes('cctv') ||
+          lower.includes('blurred') || lower.includes('headlight') || lower.includes('screen') ||
+          lower.includes('watering')) return 'Eyes';
+      if (lower.includes('ear') || lower.includes('hearing') || lower.includes('ringing') ||
+          lower.includes('tinnitus') || lower.includes('buzzing') || lower.includes('loud') ||
+          lower.includes('noise') || lower.includes('horns')) return 'Ears';
+      if (lower.includes('nose') || lower.includes('nasal') || lower.includes('smell') ||
+          lower.includes('sneez') || lower.includes('blockage') || lower.includes('perfume') ||
+          lower.includes('odour') || lower.includes('fumes') || lower.includes('incense') ||
+          lower.includes('pollen')) return 'Nose';
+      if (lower.includes('tongue') || lower.includes('taste') || lower.includes('oral') ||
+          lower.includes('mouth') || lower.includes('thirst') || lower.includes('metallic')) return 'Tongue';
+      if (lower.includes('skin') || lower.includes('itch') || lower.includes('rash') ||
+          lower.includes('dryness') || lower.includes('glove') || lower.includes('tingling') ||
+          lower.includes('numbness') || lower.includes('sanitizer') || lower.includes('disinfect') ||
+          lower.includes('weather') || lower.includes('hand')) return 'Skin';
+      return 'General';
+    }
+
+    // ── Group by sense ────────────────────────────────────────────────────
+    const SENSES = ['Eyes', 'Ears', 'Nose', 'Tongue', 'Skin', 'General'];
+    const senseMap: Record<string, Record<string, number>> = {};
+    SENSES.forEach((s) => { senseMap[s] = { Always: 0, Often: 0, Sometimes: 0, Rarely: 0, Never: 0 }; });
+
     freqAnswers.forEach((a) => {
+      const sense = extractSenseFreq(a.question.title);
       const val = String(a.value).trim();
       const key = val.charAt(0).toUpperCase() + val.slice(1).toLowerCase();
-      if (key in overall) overall[key] += 1;
+      if (!(sense in senseMap)) senseMap[sense] = { Always: 0, Often: 0, Sometimes: 0, Rarely: 0, Never: 0 };
+      if (key in senseMap[sense]) senseMap[sense][key] += 1;
     });
 
-    const overallData = Object.entries(overall).map(([label, count]) => ({ label, count }));
+    // Convert to array — one entry per sense with distribution array for pie
+    const bySense = SENSES.filter((s) =>
+      Object.values(senseMap[s] || {}).some((v) => v > 0)
+    ).map((sense) => ({
+      sense,
+      distribution: Object.entries(senseMap[sense]).map(([label, count]) => ({ label, count })),
+      total: Object.values(senseMap[sense]).reduce((s, v) => s + v, 0),
+    }));
 
-    // ── 2. Per-question distribution (top 10 by response count) ──────────
-    const questionMap: Record<string, Record<string, number>> = {};
-    freqAnswers.forEach((a) => {
-      const title = a.question.title;
-      const val = String(a.value).trim();
-      const key = val.charAt(0).toUpperCase() + val.slice(1).toLowerCase();
-      if (!questionMap[title]) questionMap[title] = { Always: 0, Often: 0, Sometimes: 0, Rarely: 0, Never: 0 };
-      if (key in questionMap[title]) questionMap[title][key] += 1;
-    });
-
-    const perQuestion = Object.entries(questionMap)
-      .map(([question, dist]) => ({
-        question,
-        total: Object.values(dist).reduce((s, v) => s + v, 0),
-        ...dist,
-      }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 10);
-
-    res.json({ success: true, data: { overall: overallData, perQuestion } });
+    res.json({ success: true, data: { bySense } });
   } catch (error) {
     next(error);
   }
