@@ -71,8 +71,13 @@ export default function SurveyPage() {
             setSectionHistory([sectionIdx]);
           }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to initialize survey:', err);
+        if (err.response?.status === 401) {
+          localStorage.removeItem(`participant_token_${survey.id}`);
+          localStorage.removeItem('participantToken');
+          window.location.reload();
+        }
       }
     };
 
@@ -106,12 +111,17 @@ export default function SurveyPage() {
       });
       setLastSaved(new Date());
       if (showToast) toast.success('Progress saved');
-    } catch {
+    } catch (err: any) {
       if (showToast) toast.error('Failed to save progress');
+      if (err.response?.status === 401 && survey?.id) {
+        localStorage.removeItem(`participant_token_${survey.id}`);
+        localStorage.removeItem('participantToken');
+        window.location.reload();
+      }
     } finally {
       setIsSaving(false);
     }
-  }, [responseId, answers, currentSection]);
+  }, [responseId, answers, currentSection, survey?.id]);
 
   const handleAnswer = (questionId: string, value: unknown) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
@@ -234,8 +244,13 @@ export default function SurveyPage() {
       await responseApi.submit({ responseId: responseId!, answers: answersArray });
       navigate(`/survey/${slug}/complete`);
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
+      const error = err as { response?: { data?: { message?: string }; status?: number } };
       toast.error(error.response?.data?.message || 'Failed to submit survey');
+      if (error.response?.status === 401 && survey?.id) {
+        localStorage.removeItem(`participant_token_${survey.id}`);
+        localStorage.removeItem('participantToken');
+        window.location.reload();
+      }
     } finally {
       setIsSubmitting(false);
     }
