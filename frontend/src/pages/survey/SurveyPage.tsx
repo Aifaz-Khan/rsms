@@ -321,7 +321,7 @@ export default function SurveyPage() {
                   <p className="text-slate-500 text-sm mt-1 mb-2">{currentSection.description}</p>
                 )}
                 
-                {currentSection.title.toLowerCase().match(/detailed|professional|manas/) && (
+                {currentSection.title.toLowerCase().match(/detailed|professional|manas|risk/) && (
                   <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 text-xs text-slate-600 space-y-2 shadow-sm mt-3">
                     <p className="font-semibold text-slate-800 text-sm border-b border-slate-200/60 pb-1.5">Response Frequency Guide:</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
