@@ -34,10 +34,16 @@ export default function SurveyBuilderPage() {
   const queryClient = useQueryClient();
   const isEditing = !!id;
 
-  const [activeTab, setActiveTab] = useState<'settings' | 'builder'>('settings');
+  const [activeTab, setActiveTab] = useState<'settings' | 'builder' | 'logic'>('settings');
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [addingQuestion, setAddingQuestion] = useState<string | null>(null);
   const [newQuestionType, setNewQuestionType] = useState<QuestionType>('SHORT_TEXT');
+
+  // Logic form states
+  const [newLogicQId, setNewLogicQId] = useState('');
+  const [newLogicOp, setNewLogicOp] = useState('EQUALS');
+  const [newLogicVal, setNewLogicVal] = useState('');
+  const [newLogicTargetSecId, setNewLogicTargetSecId] = useState('');
 
   const { data: surveyData } = useQuery({
     queryKey: ['survey', id],
@@ -121,6 +127,28 @@ export default function SurveyBuilderPage() {
     },
   });
 
+  const addLogicMutation = useMutation({
+    mutationFn: (data: Record<string, unknown>) => questionApi.setSurveyLogic(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['survey', id] });
+      toast.success('Logic rule added');
+      setNewLogicQId('');
+      setNewLogicOp('EQUALS');
+      setNewLogicVal('');
+      setNewLogicTargetSecId('');
+    },
+    onError: () => toast.error('Failed to add logic rule'),
+  });
+
+  const deleteLogicMutation = useMutation({
+    mutationFn: (logicId: string) => questionApi.deleteSurveyLogic(logicId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['survey', id] });
+      toast.success('Logic rule deleted');
+    },
+    onError: () => toast.error('Failed to delete logic rule'),
+  });
+
   const onSubmit = (data: Record<string, unknown>) => {
     saveSurveyMutation.mutate(data);
   };
@@ -164,7 +192,7 @@ export default function SurveyBuilderPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
-        {(['settings', 'builder'] as const).map((tab) => (
+        {(['settings', 'builder', 'logic'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -173,7 +201,7 @@ export default function SurveyBuilderPage() {
               activeTab === tab ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
             )}
           >
-            {tab === 'settings' ? 'Survey Settings' : 'Section & Questions'}
+            {tab === 'settings' ? 'Survey Settings' : tab === 'builder' ? 'Section & Questions' : 'Branching Logic'}
           </button>
         ))}
       </div>
@@ -336,6 +364,139 @@ export default function SurveyBuilderPage() {
               </button>
             </>
           )}
+        </div>
+      )}
+
+      {activeTab === 'logic' && (
+        <div className="space-y-6">
+          <div className="card">
+            <h3 className="font-semibold text-slate-800 mb-4">Current Branching Rules</h3>
+            {survey?.surveyLogic && (survey.surveyLogic as any[]).length > 0 ? (
+              <div className="space-y-3">
+                {(survey.surveyLogic as any[]).map((rule) => {
+                  const allQuestions = survey?.sections?.flatMap(s => 
+                    s.questions?.map(q => ({ id: q.id, title: q.title, sectionTitle: s.title })) || []
+                  ) || [];
+                  const condQ = allQuestions.find(q => q.id === rule.conditionQuestionId);
+                  const targetSec = survey.sections?.find(s => s.id === rule.targetSectionId);
+                  return (
+                    <div key={rule.id} className="flex items-center justify-between p-3 border border-slate-100 rounded-lg bg-slate-50 text-sm">
+                      <div className="text-slate-700">
+                        If <span className="font-medium text-primary-700">"{condQ?.title || 'Unknown Question'}"</span>{' '}
+                        <span className="text-slate-500 font-medium">{rule.operator.toLowerCase().replace('_', ' ')}</span>{' '}
+                        {rule.operator !== 'IS_EMPTY' && rule.operator !== 'IS_NOT_EMPTY' && (
+                          <span className="font-medium text-slate-900">"{rule.conditionValue}"</span>
+                        )}
+                        , then <span className="font-semibold text-emerald-700">jump to Section</span>{' '}
+                        <span className="font-medium text-slate-900">"{targetSec?.title || 'Unknown Section'}"</span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (confirm('Delete this logic rule?')) deleteLogicMutation.mutate(rule.id);
+                        }}
+                        disabled={deleteLogicMutation.isPending}
+                        className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400 text-center py-4">No branching rules defined yet.</p>
+            )}
+          </div>
+
+          <div className="card max-w-2xl space-y-4">
+            <h3 className="font-semibold text-slate-800">Add New Branching Rule</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="label">Select Question</label>
+                <select
+                  value={newLogicQId}
+                  onChange={(e) => setNewLogicQId(e.target.value)}
+                  className="input"
+                >
+                  <option value="">-- Select Question --</option>
+                  {(survey?.sections?.flatMap(s => 
+                    s.questions?.map(q => ({ id: q.id, title: q.title, sectionTitle: s.title })) || []
+                  ) || []).map((q) => (
+                    <option key={q.id} value={q.id}>
+                      [{q.sectionTitle}] {q.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Condition Operator</label>
+                  <select
+                    value={newLogicOp}
+                    onChange={(e) => setNewLogicOp(e.target.value)}
+                    className="input"
+                  >
+                    <option value="EQUALS">Equals</option>
+                    <option value="NOT_EQUALS">Does Not Equal</option>
+                    <option value="CONTAINS">Contains</option>
+                    <option value="IS_EMPTY">Is Empty</option>
+                    <option value="IS_NOT_EMPTY">Is Not Empty</option>
+                  </select>
+                </div>
+
+                {newLogicOp !== 'IS_EMPTY' && newLogicOp !== 'IS_NOT_EMPTY' && (
+                  <div>
+                    <label className="label">Condition Value</label>
+                    <input
+                      type="text"
+                      value={newLogicVal}
+                      onChange={(e) => setNewLogicVal(e.target.value)}
+                      placeholder="e.g. yes or student"
+                      className="input"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="label">Action: Then Jump to Section</label>
+                <select
+                  value={newLogicTargetSecId}
+                  onChange={(e) => setNewLogicTargetSecId(e.target.value)}
+                  className="input"
+                >
+                  <option value="">-- Select Target Section --</option>
+                  {survey?.sections?.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                onClick={() => {
+                  if (!newLogicQId || !newLogicTargetSecId) {
+                    toast.error('Please select both the condition question and target section');
+                    return;
+                  }
+                  addLogicMutation.mutate({
+                    surveyId: id!,
+                    conditionQuestionId: newLogicQId,
+                    operator: newLogicOp,
+                    conditionValue: newLogicVal,
+                    action: 'JUMP_TO_SECTION',
+                    targetSectionId: newLogicTargetSecId,
+                  });
+                }}
+                disabled={addLogicMutation.isPending}
+                className="btn-primary"
+              >
+                {addLogicMutation.isPending ? 'Adding...' : 'Add Rule'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
