@@ -60,6 +60,7 @@ export const responseApi = {
 
 export const analyticsApi = {
   getSurveyAnalytics: (surveyId: string) => api.get(`/analytics/surveys/${surveyId}`),
+  getPrimaryScores: () => api.get('/analytics/primary-scores'),
 };
 
 export const exportApi = {

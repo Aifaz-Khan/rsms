@@ -11,12 +11,12 @@ import {
 } from 'recharts';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
-
+import PrimaryScreeningChart from '../../components/PrimaryScreeningChart';
 const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
 export default function AnalyticsPage() {
   const { surveyId } = useParams<{ surveyId: string }>();
-  const [activeView, setActiveView] = useState<'summary' | 'camp'>('summary');
+  const [activeView, setActiveView] = useState<'summary' | 'camp' | 'primary'>('summary');
 
   const { data, isLoading } = useQuery({
     queryKey: ['analytics', surveyId],
@@ -174,6 +174,15 @@ export default function AnalyticsPage() {
           )}
         >
           <ClipboardList className="w-4 h-4 text-primary-600" /> Medical Camp Planning
+        </button>
+        <button
+          onClick={() => setActiveView('primary')}
+          className={clsx(
+            'flex items-center gap-2 px-4 py-1.5 text-sm font-medium rounded-md transition-colors',
+            activeView === 'primary' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+          )}
+        >
+          <Award className="w-4 h-4" /> Primary Screening Scores
         </button>
       </div>
 
@@ -404,6 +413,7 @@ export default function AnalyticsPage() {
           </div>
         </div>
       )}
+      {activeView === 'primary' && <PrimaryScreeningChart />}
     </div>
   );
 }
