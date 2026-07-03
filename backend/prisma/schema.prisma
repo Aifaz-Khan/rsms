@@ -1,0 +1,313 @@
+// This is your Prisma schema file
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  RESEARCHER
+  PARTICIPANT
+}
+
+enum SurveyStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+  CLOSED
+}
+
+enum QuestionType {
+  SHORT_TEXT
+  LONG_TEXT
+  EMAIL
+  PHONE
+  NUMBER
+  DATE
+  TIME
+  RADIO
+  CHECKBOX
+  DROPDOWN
+  MULTIPLE_SELECT
+  RATING
+  LIKERT_SCALE
+  YES_NO
+  FILE_UPLOAD
+  SLIDER
+  IMAGE_CHOICE
+}
+
+enum LogicOperator {
+  EQUALS
+  NOT_EQUALS
+  CONTAINS
+  NOT_CONTAINS
+  GREATER_THAN
+  LESS_THAN
+  GREATER_THAN_OR_EQUAL
+  LESS_THAN_OR_EQUAL
+  IS_EMPTY
+  IS_NOT_EMPTY
+}
+
+enum LogicAction {
+  JUMP_TO_SECTION
+  JUMP_TO_QUESTION
+  SHOW_SECTION
+  HIDE_SECTION
+  SHOW_QUESTION
+  HIDE_QUESTION
+  END_SURVEY
+}
+
+enum ResponseStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  password     String
+  firstName    String
+  lastName     String
+  role         UserRole @default(PARTICIPANT)
+  isActive     Boolean  @default(true)
+  isVerified   Boolean  @default(false)
+  avatar       String?
+  phone        String?
+  organization String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  refreshTokens RefreshToken[]
+  surveys       Survey[]
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  isRevoked Boolean  @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model PasswordReset {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("password_resets")
+}
+
+model Survey {
+  id          String       @id @default(uuid())
+  title       String
+  description String?
+  slug        String       @unique
+  logo        String?
+  status      SurveyStatus @default(DRAFT)
+  startDate   DateTime?
+  endDate     DateTime?
+  isPublic    Boolean      @default(true)
+  allowAnonymous Boolean   @default(true)
+  maxResponses Int?
+  version     Int          @default(1)
+  createdById String
+  settings    Json?
+  theme       Json?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  createdBy        User              @relation(fields: [createdById], references: [id])
+  sections         Section[]
+  responses        Response[]
+  participantTokens ParticipantToken[]
+  surveyLogic      SurveyLogic[]
+  auditLogs        AuditLog[]
+
+  @@map("surveys")
+}
+
+model Section {
+  id          String   @id @default(uuid())
+  surveyId    String
+  title       String
+  description String?
+  order       Int
+  isVisible   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  survey    Survey     @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  questions Question[]
+  logicTargets SurveyLogic[] @relation("TargetSection")
+
+  @@map("sections")
+}
+
+model Question {
+  id           String       @id @default(uuid())
+  sectionId    String
+  type         QuestionType
+  title        String
+  description  String?
+  placeholder  String?
+  helpText     String?
+  tooltip      String?
+  isRequired   Boolean      @default(false)
+  order        Int
+  defaultValue String?
+  validation   Json?
+  settings     Json?
+  isVisible    Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  section         Section          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  options         QuestionOption[]
+  answers         Answer[]
+  logicConditions SurveyLogic[]    @relation("ConditionQuestion")
+  logicTargets    SurveyLogic[]    @relation("TargetQuestion")
+
+  @@map("questions")
+}
+
+model QuestionOption {
+  id         String   @id @default(uuid())
+  questionId String
+  label      String
+  value      String
+  order      Int
+  imageUrl   String?
+  createdAt  DateTime @default(now())
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("question_options")
+}
+
+model SurveyLogic {
+  id              String        @id @default(uuid())
+  surveyId        String
+  conditionQuestionId String
+  operator        LogicOperator
+  conditionValue  String
+  action          LogicAction
+  targetSectionId String?
+  targetQuestionId String?
+  order           Int           @default(0)
+  createdAt       DateTime      @default(now())
+
+  survey            Survey    @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  conditionQuestion Question  @relation("ConditionQuestion", fields: [conditionQuestionId], references: [id], onDelete: Cascade)
+  targetSection     Section?  @relation("TargetSection", fields: [targetSectionId], references: [id], onDelete: SetNull)
+  targetQuestion    Question? @relation("TargetQuestion", fields: [targetQuestionId], references: [id], onDelete: SetNull)
+
+  @@map("survey_logic")
+}
+
+model ParticipantToken {
+  id         String   @id @default(uuid())
+  token      String   @unique @default(uuid())
+  surveyId   String
+  email      String?
+  metadata   Json?
+  expiresAt  DateTime?
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  survey   Survey    @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  response Response?
+
+  @@map("participant_tokens")
+}
+
+model Response {
+  id               String         @id @default(uuid())
+  surveyId         String
+  participantTokenId String?      @unique
+  status           ResponseStatus @default(IN_PROGRESS)
+  currentSectionId String?
+  currentQuestionOrder Int?       @default(0)
+  startedAt        DateTime       @default(now())
+  completedAt      DateTime?
+  lastSavedAt      DateTime       @default(now())
+  ipAddress        String?
+  userAgent        String?
+  metadata         Json?
+  completionTime   Int?
+
+  survey           Survey           @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  participantToken ParticipantToken? @relation(fields: [participantTokenId], references: [id])
+  answers          Answer[]
+
+  @@map("responses")
+}
+
+model Answer {
+  id          String   @id @default(uuid())
+  responseId  String
+  questionId  String
+  value       Json
+  fileUrl     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  response Response @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([responseId, questionId])
+  @@map("answers")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  surveyId   String?
+  action     String
+  entity     String
+  entityId   String?
+  oldValues  Json?
+  newValues  Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  survey Survey? @relation(fields: [surveyId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
+
+model QuestionBank {
+  id          String       @id @default(uuid())
+  title       String
+  type        QuestionType
+  description String?
+  options     Json?
+  validation  Json?
+  settings    Json?
+  tags        String[]
+  category    String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("question_bank")
+}
