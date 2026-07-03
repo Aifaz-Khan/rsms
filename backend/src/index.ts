@@ -24,6 +24,9 @@ import questionBankRoutes from './routes/questionBank.routes';
 
 const app = express();
 
+// Trust proxy (required for Render/Cloudflare proxying and express-rate-limit)
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
