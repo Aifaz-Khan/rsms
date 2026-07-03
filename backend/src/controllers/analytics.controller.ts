@@ -139,26 +139,38 @@ export const getSurveyAnalytics = async (req: AuthRequest, res: Response, next: 
 
 function extractSense(title: string): string {
   const lower = title.toLowerCase();
-  if (lower.includes('eye')) return 'Eyes';
-  if (lower.includes('ear')) return 'Ears';
-  if (lower.includes('nose') || lower.includes('nasal') || lower.includes('smell')) return 'Nose';
-  if (lower.includes('tongue') || lower.includes('taste') || lower.includes('oral')) return 'Tongue';
-  if (lower.includes('skin') || lower.includes('touch')) return 'Skin';
+  // Eyes
+  if (lower.includes('eye') || lower.includes('vision') || lower.includes('cctv') || lower.includes('screen') || lower.includes('blurred') || lower.includes('headlight') || lower.includes('night driving') || lower.includes('computer screen') || lower.includes('watering')) return 'Eyes';
+  // Ears
+  if (lower.includes('ear') || lower.includes('hearing') || lower.includes('ringing') || lower.includes('tinnitus') || lower.includes('buzzing') || lower.includes('noise') || lower.includes('horns') || lower.includes('loud')) return 'Ears';
+  // Nose
+  if (lower.includes('nose') || lower.includes('nasal') || lower.includes('smell') || lower.includes('sneezing') || lower.includes('sneez') || lower.includes('blockage') || lower.includes('nostril') || lower.includes('perfume') || lower.includes('odour') || lower.includes('fumes')) return 'Nose';
+  // Tongue / Taste / Oral
+  if (lower.includes('tongue') || lower.includes('taste') || lower.includes('oral') || lower.includes('mouth') || lower.includes('thirst') || lower.includes('metallic')) return 'Tongue';
+  // Skin
+  if (lower.includes('skin') || lower.includes('itch') || lower.includes('rash') || lower.includes('dryness') || lower.includes('glove') || lower.includes('hand') || lower.includes('tingling') || lower.includes('numbness') || lower.includes('sanitizer') || lower.includes('disinfect')) return 'Skin';
   return 'unknown';
 }
 
 export const getPrimaryScores = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    // Fetch all answers for YES_NO type questions
+    // All yes/no primary screening questions are stored as RADIO type
+    // Fetch all RADIO answers, then filter only those with yes/no values
     const answers = await prisma.answer.findMany({
+      where: { question: { type: 'RADIO' } },
       include: { question: { select: { title: true, type: true } } },
-      where: { question: { type: 'YES_NO' } },
+    });
+
+    // Keep only yes/no answers (primary screening questions)
+    const yesNoAnswers = answers.filter((a) => {
+      const val = String(a.value).toLowerCase().trim();
+      return val === 'yes' || val === 'no';
     });
 
     // Aggregate per sense
     const senseMap: Record<string, { yes: number; no: number; total: number }> = {};
 
-    answers.forEach((a) => {
+    yesNoAnswers.forEach((a) => {
       const sense = extractSense(a.question.title);
       if (sense === 'unknown') return;
       if (!senseMap[sense]) senseMap[sense] = { yes: 0, no: 0, total: 0 };
