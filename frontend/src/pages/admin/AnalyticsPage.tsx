@@ -60,9 +60,9 @@ export default function AnalyticsPage() {
   const { overview, questionAnalysis, sectionCompletion, responseTrend } = analytics;
 
   // --- Dynamic Medical Camp Insights Calculations ---
-  // Helper to extract yes/no complaints from questionAnalysis
+  // Finds a question by keyword match and returns % of 'yes' answers — fully data-driven, no hardcoded fallbacks
   const getComplaintRate = (titleKeywords: string[]) => {
-    const q = questionAnalysis?.find((qa: any) => 
+    const q = questionAnalysis?.find((qa: any) =>
       titleKeywords.every(k => qa.questionTitle.toLowerCase().includes(k.toLowerCase()))
     );
     if (!q) return 0;
@@ -71,16 +71,16 @@ export default function AnalyticsPage() {
     return Math.round((yesCount / total) * 100);
   };
 
-  const eyeRate = getComplaintRate(['eye-related complaints']) || 65; // fallback defaults based on 435 dataset if not found
+  // Real keyword matches from actual survey question titles in the database
+  const eyeRate = getComplaintRate(['eye-related complaints']);
   const noseRate = Math.max(
-    getComplaintRate(['nasal blockage']),
+    getComplaintRate(['nasal blockage or obstruction']),
     getComplaintRate(['reduction or loss', 'smell']),
-    getComplaintRate(['nasal dryness']),
-    30
+    getComplaintRate(['nasal dryness'])
   );
-  const tongueRate = getComplaintRate(['difficulty identifying', 'six tastes']) || 15;
-  const skinRate = getComplaintRate(['chronic skin disorders']) || 45;
-  const earRate = getComplaintRate(['ear related complaint']) || 25;
+  const tongueRate = getComplaintRate(['difficulty identifying', 'six tastes']);
+  const skinRate = getComplaintRate(['chronic skin disorders']);
+  const earRate = getComplaintRate(['ear related complaint']);
 
   const radarData = [
     { subject: 'Eyes (Chakshu)', A: eyeRate, fullMark: 100 },
@@ -90,7 +90,7 @@ export default function AnalyticsPage() {
     { subject: 'Ears (Karna)', A: earRate, fullMark: 100 },
   ];
 
-  // Calculate Symptom Severity Breakdown from all Likert scale questions
+  // Calculate Symptom Severity Breakdown from real frequency-type answers only
   let alwaysOftenCount = 0;
   let sometimesCount = 0;
   let neverRarelyCount = 0;
@@ -104,28 +104,21 @@ export default function AnalyticsPage() {
         const k = key.toLowerCase();
         const count = Number(val) || 0;
         totalScaleAnswers += count;
-        if (k === 'always' || k === 'often') {
-          alwaysOftenCount += count;
-        } else if (k === 'sometimes') {
-          sometimesCount += count;
-        } else if (k === 'never' || k === 'rarely') {
-          neverRarelyCount += count;
-        }
+        if (k === 'always' || k === 'often') alwaysOftenCount += count;
+        else if (k === 'sometimes') sometimesCount += count;
+        else if (k === 'never' || k === 'rarely') neverRarelyCount += count;
       });
     }
   });
 
+  // Only render if we have real data — no hardcoded fallbacks
   const severityData = totalScaleAnswers > 0 ? [
     { name: 'Severe (Always/Often)', value: alwaysOftenCount, color: '#ef4444' },
     { name: 'Moderate (Sometimes)', value: sometimesCount, color: '#f59e0b' },
     { name: 'Mild/None (Never/Rarely)', value: neverRarelyCount, color: '#10b981' },
-  ] : [
-    { name: 'Severe (Always/Often)', value: 142, color: '#ef4444' },
-    { name: 'Moderate (Sometimes)', value: 198, color: '#f59e0b' },
-    { name: 'Mild/None (Never/Rarely)', value: 95, color: '#10b981' },
-  ];
+  ] : [];
 
-  // Camp Capacity Allocation based on organ complaint rates
+  // Camp Capacity Allocation — proportional to real complaint rates from data
   const sumRates = eyeRate + noseRate + tongueRate + skinRate + earRate || 1;
   const campAllocationData = [
     { name: 'Netra Tarpana (Eye station)', value: Math.round((eyeRate / sumRates) * 100), color: '#0ea5e9' },
