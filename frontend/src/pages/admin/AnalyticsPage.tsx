@@ -252,7 +252,13 @@ export default function AnalyticsPage() {
             {questionAnalysis
               .filter((q: any) => Object.keys(q.distribution).length > 0 || (q.textResponses && q.textResponses.length > 0))
               .map((q: any) => {
-                const chartData = Object.entries(q.distribution || {}).map(([key, count]) => ({ name: key, count }));
+                const total = q.totalAnswers || 1;
+                // Convert to percentage-based chart data
+                const chartData = Object.entries(q.distribution || {}).map(([key, count]) => ({
+                  name: key,
+                  count: Number(count),
+                  pct: Math.round((Number(count) / total) * 100),
+                }));
                 return (
                   <div key={q.questionId} className="card">
                     <div className="flex items-start justify-between mb-3">
@@ -262,15 +268,23 @@ export default function AnalyticsPage() {
                       </div>
                       <span className="badge badge-info text-xs flex-shrink-0">{q.questionType}</span>
                     </div>
-                    
+
                     {chartData.length > 0 && (
                       <ResponsiveContainer width="100%" height={160}>
                         <BarChart data={chartData}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                           <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                          <YAxis tick={{ fontSize: 10 }} />
-                          <Tooltip />
-                          <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                          <YAxis
+                            tick={{ fontSize: 10 }}
+                            tickFormatter={(v) => `${v}%`}
+                            domain={[0, 100]}
+                          />
+                          <Tooltip
+                            formatter={(value: number, _name: string, props: any) =>
+                              [`${props.payload.pct}% (${props.payload.count} responses)`, 'Response']
+                            }
+                          />
+                          <Bar dataKey="pct" radius={[4, 4, 0, 0]}>
                             {chartData.map((_, i) => (
                               <Cell key={i} fill={COLORS[i % COLORS.length]} />
                             ))}
