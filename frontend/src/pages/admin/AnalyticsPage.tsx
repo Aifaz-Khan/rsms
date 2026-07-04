@@ -129,6 +129,66 @@ export default function AnalyticsPage() {
     { name: 'Karna Purana (Ear station)', value: Math.round((earRate / sumRates) * 100), color: '#f59e0b' },
   ];
 
+  // --- Age distribution from real data ---
+  const getDistribution = (titleKeyword: string) => {
+    const q = questionAnalysis?.find((qa: any) => qa.questionTitle.toLowerCase().includes(titleKeyword.toLowerCase()));
+    if (!q) return [];
+    const total = q.totalAnswers || 1;
+    return Object.entries(q.distribution || {}).map(([key, count]) => ({
+      name: key,
+      count: Number(count),
+      pct: Math.round((Number(count) / total) * 100),
+    }));
+  };
+
+  const ageData = getDistribution('Age').sort((a, b) => a.name.localeCompare(b.name));
+  const genderData = getDistribution('Gender').map(d => ({ ...d, name: d.name.charAt(0).toUpperCase() + d.name.slice(1).toLowerCase() }));
+
+  // --- Key Risk Factor rates (% Always+Often) from frequency questions ---
+  const getRiskRate = (titleKeyword: string) => {
+    const q = questionAnalysis?.find((qa: any) => qa.questionTitle.toLowerCase().includes(titleKeyword.toLowerCase()));
+    if (!q) return 0;
+    const total = q.totalAnswers || 1;
+    const high = (Number(q.distribution?.Always || q.distribution?.always || 0) + Number(q.distribution?.Often || q.distribution?.often || 0));
+    return Math.round((high / total) * 100);
+  };
+  const getYesRate = (titleKeyword: string) => {
+    const q = questionAnalysis?.find((qa: any) => qa.questionTitle.toLowerCase().includes(titleKeyword.toLowerCase()));
+    if (!q) return 0;
+    const total = q.totalAnswers || 1;
+    return Math.round((Number(q.distribution?.yes || q.distribution?.Yes || 0) / total) * 100);
+  };
+
+  const riskFactorData = [
+    { name: 'Screen time > 4h/day', value: getYesRate('4 hours per day'), color: '#0ea5e9', insight: 'Major driver of digital eye strain' },
+    { name: 'Sleep < 7 hours', value: getRiskRate('less than 7'), color: '#8b5cf6', insight: 'Affects concentration & sense organ recovery' },
+    { name: 'Mental stress', value: getRiskRate('mental stress'), color: '#ef4444', insight: 'Linked to sensory hypersensitivity' },
+    { name: 'Physical inactivity', value: getRiskRate('physical activity'), color: '#f97316', insight: 'Reduces immune & sensory resilience' },
+    { name: 'Unhealthy diet', value: getRiskRate('unhealthy or processed'), color: '#f59e0b', insight: 'Affects mucous membrane & skin health' },
+    { name: 'Chronic illness', value: getYesRate('Chronic / Congenital'), color: '#10b981', insight: 'Pre-existing conditions needing priority care' },
+  ].filter(d => d.value > 0);
+
+  // --- Self-reported most affected sense (from multiple profession-specific questions) ---
+  const selfReportedSense = [
+    { name: 'Eyes', value: 0, color: '#0ea5e9' },
+    { name: 'Ears', value: 0, color: '#8b5cf6' },
+    { name: 'Nose', value: 0, color: '#10b981' },
+    { name: 'Tongue', value: 0, color: '#ec4899' },
+    { name: 'Skin', value: 0, color: '#f59e0b' },
+  ];
+  questionAnalysis?.filter((qa: any) => qa.questionTitle.toLowerCase().includes('most affected')).forEach((qa: any) => {
+    Object.entries(qa.distribution || {}).forEach(([key, count]) => {
+      const lower = key.toLowerCase();
+      const n = Number(count);
+      if (lower.includes('eye') || lower.includes('chakshu')) selfReportedSense[0].value += n;
+      else if (lower.includes('ear') || lower.includes('shrotra')) selfReportedSense[1].value += n;
+      else if (lower.includes('nose') || lower.includes('ghrana')) selfReportedSense[2].value += n;
+      else if (lower.includes('tongue') || lower.includes('rasana')) selfReportedSense[3].value += n;
+      else if (lower.includes('skin') || lower.includes('touch') || lower.includes('sparsha')) selfReportedSense[4].value += n;
+    });
+  });
+  const selfTotal = selfReportedSense.reduce((s, d) => s + d.value, 0) || 1;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -320,15 +380,16 @@ export default function AnalyticsPage() {
               Pre-Camp Medical Diagnostic Insights
             </h3>
             <p className="text-xs text-primary-700 leading-relaxed max-w-3xl">
-              This intelligence report is computed directly from the **{overview.totalResponses} participant responses** imported into your database. 
-              By cross-referencing sensory complaints and frequency values, these charts isolate the sensory organ burden to help you plan your **7-Day Medical Camp** treatments, clinical resources, and patient prioritization.
+              Computed directly from <strong>{overview.totalResponses} participant responses</strong>. Cross-references sensory complaints,
+              demographic data, lifestyle risk factors and frequency values to help plan your 7-Day Medical Camp.
             </p>
           </div>
 
+          {/* Row 1: Radar + Severity */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="card">
               <h3 className="font-semibold text-slate-800 text-sm mb-1">1. Sensory Organ Burden (% Affected)</h3>
-              <p className="text-xs text-slate-400 mb-4">Radar chart measuring overall percentage of population with complaints in each of the 5 indriyas.</p>
+              <p className="text-xs text-slate-400 mb-4">Radar chart — % of respondents with complaints per sense organ (from primary screening Yes/No questions).</p>
               <div className="flex items-center justify-center" style={{ height: 260 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
@@ -344,49 +405,117 @@ export default function AnalyticsPage() {
 
             <div className="card">
               <h3 className="font-semibold text-slate-800 text-sm mb-1">2. Symptom Severity Breakdown</h3>
-              <p className="text-xs text-slate-400 mb-4">Pie chart classifying all frequency responses into Severe (Always/Often), Moderate (Sometimes) and Mild/None.</p>
+              <p className="text-xs text-slate-400 mb-4">All frequency responses classified into Severe (Always/Often), Moderate (Sometimes) and Mild/None (Rarely/Never).</p>
               <div className="flex items-center justify-center" style={{ height: 260 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie
-                      data={severityData}
-                      cx="50%"
-                      cy="45%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={3}
-                      dataKey="value"
-                    >
-                      {severityData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
+                    <Pie data={severityData} cx="50%" cy="45%" innerRadius={60} outerRadius={80} paddingAngle={3} dataKey="value">
+                      {severityData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                     </Pie>
-                    <Tooltip formatter={(value) => `${value} answers`} />
+                    <Tooltip formatter={(value: number) => {
+                      const tot = severityData.reduce((s,d)=>s+d.value,0)||1;
+                      return [`${value} answers (${Math.round(value/tot*100)}%)`, ''];
+                    }} />
                     <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: 11 }} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
             </div>
+          </div>
+
+          {/* Row 2: Age + Gender */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="card">
+              <h3 className="font-semibold text-slate-800 text-sm mb-1">3. Age Group Distribution</h3>
+              <p className="text-xs text-slate-400 mb-4">Breakdown of respondents by age group — determines which age cohort needs priority camp attention.</p>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={ageData} margin={{ left: 0, right: 16 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <YAxis tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} domain={[0, 100]} />
+                  <Tooltip formatter={(value: number, _: any, props: any) => [`${props.payload.pct}% (${props.payload.count})`, 'Respondents']} />
+                  <Bar dataKey="pct" radius={[4, 4, 0, 0]}>
+                    {ageData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
 
             <div className="card">
-              <h3 className="font-semibold text-slate-800 text-sm mb-1">3. Suggested Camp Capacity & Resource Allocation</h3>
-              <p className="text-xs text-slate-400 mb-4">Proportionate distribution of camp resources and doctor specialists based on detected disease rates.</p>
-              <div className="flex items-center justify-center" style={{ height: 260 }}>
+              <h3 className="font-semibold text-slate-800 text-sm mb-1">4. Gender Distribution</h3>
+              <p className="text-xs text-slate-400 mb-4">Male vs Female respondent split — helps plan gender-specific Ayurvedic treatments at the camp.</p>
+              <div className="flex items-center justify-center" style={{ height: 220 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={genderData} cx="50%" cy="45%" outerRadius={80} innerRadius={45} paddingAngle={3}
+                      dataKey="pct"
+                      label={({ name, pct }) => `${name} ${pct}%`} labelLine={false}
+                    >
+                      {genderData.map((_, i) => <Cell key={i} fill={['#0ea5e9','#ec4899','#f59e0b'][i % 3]} />)}
+                    </Pie>
+                    <Tooltip formatter={(v: number, _: any, p: any) => [`${p.payload.count} (${v}%)`, '']} />
+                    <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: 12 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 3: Risk Factors + Self-reported sense */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="card">
+              <h3 className="font-semibold text-slate-800 text-sm mb-1">5. Key Lifestyle Risk Factors</h3>
+              <p className="text-xs text-slate-400 mb-4">% of participants showing high-frequency exposure to each risk factor (Always + Often combined). Critical for camp counselling focus.</p>
+              <div className="space-y-3">
+                {riskFactorData.map((r) => (
+                  <div key={r.name}>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-xs font-semibold text-slate-700">{r.name}</span>
+                      <span className="text-xs font-bold" style={{ color: r.color }}>{r.value}%</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                      <div className="h-2 rounded-full transition-all duration-700" style={{ width: `${r.value}%`, backgroundColor: r.color }} />
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{r.insight}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="card">
+              <h3 className="font-semibold text-slate-800 text-sm mb-1">6. Self-Reported Most Affected Sense</h3>
+              <p className="text-xs text-slate-400 mb-4">What participants themselves feel is their most impacted sense organ — corroborates the clinical screening data.</p>
+              <div className="flex items-center justify-center" style={{ height: 220 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={campAllocationData}
-                      cx="50%"
-                      cy="45%"
-                      innerRadius={0}
-                      outerRadius={80}
+                      data={selfReportedSense.filter(d => d.value > 0).map(d => ({ ...d, pct: Math.round(d.value/selfTotal*100) }))}
+                      cx="50%" cy="45%" outerRadius={80} innerRadius={40} paddingAngle={3}
                       dataKey="value"
+                      label={({ name, pct }) => `${name} ${pct}%`} labelLine={false}
                     >
-                      {campAllocationData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
+                      {selfReportedSense.filter(d=>d.value>0).map((entry) => <Cell key={entry.name} fill={entry.color} />)}
                     </Pie>
-                    <Tooltip formatter={(value) => `${value}% capacity`} />
+                    <Tooltip formatter={(v: number) => [`${v} (${Math.round(v/selfTotal*100)}%)`, 'Respondents']} />
+                    <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: 11 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 4: Camp Allocation + Action Plan */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="card">
+              <h3 className="font-semibold text-slate-800 text-sm mb-1">7. Suggested Camp Resource Allocation</h3>
+              <p className="text-xs text-slate-400 mb-4">Proportionate distribution of camp resources and specialist doctors based on detected complaint rates per sense.</p>
+              <div className="flex items-center justify-center" style={{ height: 260 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={campAllocationData} cx="50%" cy="45%" outerRadius={80} dataKey="value">
+                      {campAllocationData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                    </Pie>
+                    <Tooltip formatter={(value) => `${value}% of camp capacity`} />
                     <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: 10 }} />
                   </PieChart>
                 </ResponsiveContainer>
@@ -397,43 +526,28 @@ export default function AnalyticsPage() {
               <div>
                 <h3 className="font-semibold text-slate-800 text-sm mb-1 flex items-center gap-1.5">
                   <Award className="w-4 h-4 text-emerald-600" />
-                  4. Recommended 7-Day Medical Camp Action Plan
+                  8. Recommended 7-Day Camp Action Plan
                 </h3>
-                <p className="text-xs text-slate-400 mb-4">Targeted timeline based on diagnosed disease burden from your data.</p>
-                
-                <div className="space-y-3 text-xs">
-                  <div className="flex items-start gap-2.5 border-l-2 border-primary-500 pl-3 py-0.5">
-                    <div className="flex-1">
-                      <p className="font-semibold text-slate-800">Days 1–3: Netra Tarpana & Eye Care Station</p>
-                      <p className="text-slate-500 text-[11px] mt-0.5">High screening rate ({eyeRate}%) indicates extreme computer/screen fatigue. Prioritize cooling drops and vision tests.</p>
+                <p className="text-xs text-slate-400 mb-3">Targeted timeline derived from all statistical findings above.</p>
+                <div className="space-y-2.5 text-xs">
+                  {[
+                    { days: 'Days 1–3', title: 'Netra Tarpana & Eye Care', color: 'border-blue-500', detail: `${eyeRate}% symptomatic — screen fatigue, vision tests, cooling drops` },
+                    { days: 'Days 4–5', title: 'Twachya Chikitsa (Skin)', color: 'border-emerald-500', detail: `${skinRate}% chronic skin issues — lepa therapy for gardeners & cleaners` },
+                    { days: 'Day 6', title: 'Nasya & Audiometry', color: 'border-purple-500', detail: `Nasal ${noseRate}% + Ear ${earRate}% — drivers & watchmen prioritized` },
+                    { days: 'Day 7', title: 'Swasthavritta Counseling', color: 'border-amber-500', detail: `Lifestyle coaching — sleep, diet, stress, digital detox` },
+                  ].map((item) => (
+                    <div key={item.days} className={`flex items-start gap-2.5 border-l-2 ${item.color} pl-3 py-0.5`}>
+                      <div className="flex-1">
+                        <p className="font-semibold text-slate-800">{item.days}: {item.title}</p>
+                        <p className="text-slate-500 text-[11px] mt-0.5">{item.detail}</p>
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="flex items-start gap-2.5 border-l-2 border-emerald-500 pl-3 py-0.5">
-                    <div className="flex-1">
-                      <p className="font-semibold text-slate-800">Days 4–5: Twachya Chikitsa (Skin Care Station)</p>
-                      <p className="text-slate-500 text-[11px] mt-0.5">High prevalence of skin dryness and occupational rashes ({skinRate}%). Focus on gardeners and cleaners.</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-2.5 border-l-2 border-purple-500 pl-3 py-0.5">
-                    <div className="flex-1">
-                      <p className="font-semibold text-slate-800">Day 6: Nasya Therapy & Hearing Audiometry</p>
-                      <p className="text-slate-500 text-[11px] mt-0.5">Nasal blockage ({noseRate}%) and hearing discomfort ({earRate}%) reported primarily by drivers/watchmen.</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-2.5 border-l-2 border-amber-500 pl-3 py-0.5">
-                    <div className="flex-1">
-                      <p className="font-semibold text-slate-800">Day 7: Ayurvedic Swasthavritta Lifestyle Counseling</p>
-                      <p className="text-slate-500 text-[11px] mt-0.5">Mindfulness (meditation/yoga) and sleep education based on Manas & Risk Factor findings.</p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
               <div className="mt-4 pt-3 border-t border-slate-100 text-center">
                 <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
-                  Ready to present to your project evaluation committee!
+                  Ready for project evaluation committee presentation
                 </span>
               </div>
             </div>
