@@ -178,8 +178,8 @@ async function main() {
         const valLower = String(value).toLowerCase();
         if (valLower.includes('student')) value = 'student';
         else if (valLower.includes('intern')) value = 'intern';
+        else if (valLower.includes('non')) value = 'non_teaching_staff';       // MUST come before 'teaching' check
         else if (valLower.includes('teaching')) value = 'teaching_staff';
-        else if (valLower.includes('non')) value = 'non_teaching_staff';
       }
 
       if (question.title.includes('(For Non-teaching staff)')) {
