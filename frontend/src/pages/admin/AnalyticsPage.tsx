@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { analyticsApi, exportApi } from '../../api';
-import { ArrowLeft, Download, ShieldAlert, Award, FileText, ClipboardList } from 'lucide-react';
+import { ArrowLeft, Download, ShieldAlert, Award, FileText, ClipboardList, Users } from 'lucide-react';
 import {
   Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, AreaChart, Area,
@@ -13,11 +13,12 @@ import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import PrimaryScreeningChart from '../../components/PrimaryScreeningChart';
 import FrequencyDistributionChart from '../../components/FrequencyDistributionChart';
+import ParticipantBreakdownChart from '../../components/ParticipantBreakdownChart';
 const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
 export default function AnalyticsPage() {
   const { surveyId } = useParams<{ surveyId: string }>();
-  const [activeView, setActiveView] = useState<'summary' | 'camp' | 'primary' | 'frequency'>('summary');
+  const [activeView, setActiveView] = useState<'summary' | 'camp' | 'primary' | 'frequency' | 'participants'>('summary');
 
   const { data, isLoading } = useQuery({
     queryKey: ['analytics', surveyId],
@@ -186,6 +187,15 @@ export default function AnalyticsPage() {
           )}
         >
           <ShieldAlert className="w-4 h-4 text-amber-500" /> Frequency Analysis
+        </button>
+        <button
+          onClick={() => setActiveView('participants')}
+          className={clsx(
+            'flex items-center gap-2 px-4 py-1.5 text-sm font-medium rounded-md transition-colors',
+            activeView === 'participants' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+          )}
+        >
+          <Users className="w-4 h-4 text-blue-500" /> Participants
         </button>
       </div>
 
@@ -418,6 +428,7 @@ export default function AnalyticsPage() {
       )}
       {activeView === 'primary' && <PrimaryScreeningChart />}
       {activeView === 'frequency' && <FrequencyDistributionChart />}
+      {activeView === 'participants' && <ParticipantBreakdownChart />}
     </div>
   );
 }

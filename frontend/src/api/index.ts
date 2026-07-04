@@ -62,6 +62,7 @@ export const analyticsApi = {
   getSurveyAnalytics: (surveyId: string) => api.get(`/analytics/surveys/${surveyId}`),
   getPrimaryScores: () => api.get('/analytics/primary-scores'),
   getFrequencyDistribution: () => api.get('/analytics/frequency-distribution'),
+  getParticipantBreakdown: () => api.get('/analytics/participant-breakdown'),
 };
 
 export const exportApi = {

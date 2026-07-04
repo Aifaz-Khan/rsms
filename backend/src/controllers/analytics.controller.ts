@@ -196,6 +196,68 @@ export const getPrimaryScores = async (req: AuthRequest, res: Response, next: Ne
 };
 
 /**
+ * Returns response count broken down by participant type.
+ * Combines "Are you.." (student/teaching_staff/intern) and
+ * "Are you? (For Non-teaching staff)" (receptionist/nurse/etc.) questions.
+ */
+export const getParticipantBreakdown = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const LABEL_MAP: Record<string, string> = {
+      student: 'Student',
+      teaching_staff: 'Teaching Staff',
+      intern: 'Intern',
+      receptionist: 'Receptionist',
+      cleaner: 'Cleaner',
+      watchmen: 'Watchmen',
+      driver: 'Driver',
+      nurse: 'Nurse',
+      gardener: 'Gardener',
+    };
+
+    // Primary type question  ("Are you..")
+    const primaryQ = await prisma.question.findFirst({
+      where: { title: { contains: 'Are you..', mode: 'insensitive' } },
+      select: { id: true },
+    });
+
+    // Non-teaching staff sub-type question
+    const nonTeachingQ = await prisma.question.findFirst({
+      where: { title: { contains: 'For Non-teaching staff', mode: 'insensitive' } },
+      select: { id: true },
+    });
+
+    const counts: Record<string, number> = {};
+
+    if (primaryQ) {
+      const answers = await prisma.answer.findMany({ where: { questionId: primaryQ.id }, select: { value: true } });
+      answers.forEach((a) => {
+        const raw = String(a.value).toLowerCase().trim();
+        const label = LABEL_MAP[raw] ?? raw;
+        counts[label] = (counts[label] || 0) + 1;
+      });
+    }
+
+    if (nonTeachingQ) {
+      const answers = await prisma.answer.findMany({ where: { questionId: nonTeachingQ.id }, select: { value: true } });
+      answers.forEach((a) => {
+        const raw = String(a.value).toLowerCase().trim();
+        const label = LABEL_MAP[raw] ?? raw;
+        counts[label] = (counts[label] || 0) + 1;
+      });
+    }
+
+    const total = Object.values(counts).reduce((s, v) => s + v, 0);
+    const breakdown = Object.entries(counts)
+      .map(([type, count]) => ({ type, count, percent: total > 0 ? Math.round((count / total) * 100) : 0 }))
+      .sort((a, b) => b.count - a.count);
+
+    res.json({ success: true, data: { breakdown, total } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Returns frequency answer distribution (Always/Often/Sometimes/Rarely/Never)
  * grouped by sense (Eyes, Ears, Nose, Tongue, Skin, General).
  * Yes/No answers are excluded.
