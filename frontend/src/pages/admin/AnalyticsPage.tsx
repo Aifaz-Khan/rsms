@@ -443,22 +443,37 @@ export default function AnalyticsPage() {
 
             <div className="card">
               <h3 className="font-semibold text-slate-800 text-sm mb-1">4. Gender Distribution</h3>
-              <p className="text-xs text-slate-400 mb-4">Male vs Female respondent split — helps plan gender-specific Ayurvedic treatments at the camp.</p>
-              <div className="flex items-center justify-center" style={{ height: 220 }}>
+              <p className="text-xs text-slate-400 mb-3">Male vs Female respondent split — helps plan gender-specific Ayurvedic treatments at the camp.</p>
+              {/* Stat badges */}
+              <div className="flex justify-center gap-4 mb-2">
+                {genderData.map((d, i) => (
+                  <div key={d.name} className="flex items-center gap-1.5 text-sm font-semibold">
+                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: ['#0ea5e9','#ec4899','#f59e0b'][i % 3] }} />
+                    <span className="text-slate-700">{d.name}</span>
+                    <span className="font-bold" style={{ color: ['#0ea5e9','#ec4899','#f59e0b'][i % 3] }}>{d.pct}%</span>
+                    <span className="text-xs text-slate-400 font-normal">({d.count})</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-center" style={{ height: 190 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={genderData} cx="50%" cy="45%" outerRadius={80} innerRadius={45} paddingAngle={3}
+                    <Pie
+                      data={genderData}
+                      cx="50%" cy="50%"
+                      outerRadius={78}
+                      innerRadius={44}
+                      paddingAngle={3}
                       dataKey="pct"
-                      label={({ name, pct }) => `${name} ${pct}%`} labelLine={false}
                     >
                       {genderData.map((_, i) => <Cell key={i} fill={['#0ea5e9','#ec4899','#f59e0b'][i % 3]} />)}
                     </Pie>
-                    <Tooltip formatter={(v: number, _: any, p: any) => [`${p.payload.count} (${v}%)`, '']} />
-                    <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: 12 }} />
+                    <Tooltip formatter={(v: number, _: any, p: any) => [`${p.payload.count} respondents (${v}%)`, p.payload.name]} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
             </div>
+
           </div>
 
           {/* Row 3: Risk Factors + Self-reported sense */}
