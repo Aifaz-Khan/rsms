@@ -352,7 +352,7 @@ export default function AnalyticsPage() {
                             domain={[0, 100]}
                           />
                           <Tooltip
-                            formatter={(value: number, _name: string, props: any) =>
+                            formatter={(_value: number, _name: string, props: any) =>
                               [`${props.payload.pct}% (${props.payload.count} responses)`, 'Response']
                             }
                           />
@@ -445,7 +445,7 @@ export default function AnalyticsPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                   <YAxis tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} domain={[0, 100]} />
-                  <Tooltip formatter={(value: number, _: any, props: any) => [`${props.payload.pct}% (${props.payload.count})`, 'Respondents']} />
+                  <Tooltip formatter={(_value: number, _: any, props: any) => [`${props.payload.pct}% (${props.payload.count})`, 'Respondents']} />
                   <Bar dataKey="pct" radius={[4, 4, 0, 0]}>
                     {ageData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                   </Bar>

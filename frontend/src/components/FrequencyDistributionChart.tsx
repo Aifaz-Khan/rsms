@@ -201,6 +201,7 @@ export default function FrequencyDistributionChart() {
               Select a section below to explore. Yes / No questions are excluded.
               Total <strong>{sections.length} sections</strong> · <strong>{sections.reduce((s,sec)=>s+sec.questions.length,0)} questions</strong>.
             </p>
+          </div>
           <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
             <button
               onClick={() => openPrintWindow([current], `Frequency Analysis: ${current.section}`)}
