@@ -142,7 +142,19 @@ export default function AnalyticsPage() {
   };
 
   const ageData = getDistribution('Age').sort((a, b) => a.name.localeCompare(b.name));
-  const genderData = getDistribution('Gender').map(d => ({ ...d, name: d.name.charAt(0).toUpperCase() + d.name.slice(1).toLowerCase() }));
+  // Normalise gender names and merge duplicates (e.g. "Male" + "male" → single "Male" entry)
+  const genderRaw = getDistribution('Gender').map(d => ({
+    ...d,
+    name: d.name.charAt(0).toUpperCase() + d.name.slice(1).toLowerCase(),
+  }));
+  const genderMergeMap: Record<string, { name: string; count: number; pct: number }> = {};
+  genderRaw.forEach(d => {
+    if (!genderMergeMap[d.name]) genderMergeMap[d.name] = { name: d.name, count: 0, pct: 0 };
+    genderMergeMap[d.name].count += d.count;
+  });
+  const genderMergedTotal = Object.values(genderMergeMap).reduce((s, d) => s + d.count, 0) || 1;
+  Object.values(genderMergeMap).forEach(d => { d.pct = Math.round((d.count / genderMergedTotal) * 100); });
+  const genderData = Object.values(genderMergeMap).sort((a, b) => b.count - a.count);
 
   // --- Key Risk Factor rates (% Always+Often) from frequency questions ---
   const getRiskRate = (titleKeyword: string) => {
