@@ -38,60 +38,109 @@ interface DistEntry { label: string; count: number; percent: number; }
 interface QuestionData { question: string; total: number; distribution: DistEntry[]; }
 interface SectionData  { section: string; totalAnswers: number; questions: QuestionData[]; }
 
-// Generate a printable HTML document with all sections as a PDF-ready report
-function buildPrintHTML(sections: SectionData[]): string {
-  const COLORS: Record<string,string> = {
-    Always: '#ef4444', Often: '#f97316', Sometimes: '#f59e0b', Rarely: '#22c55e', Never: '#3b82f6',
-  };
-  const ORDER = ['Always','Often','Sometimes','Rarely','Never'];
+const FREQ_COLORS_MAP: Record<string,string> = {
+  Always: '#ef4444', Often: '#f97316', Sometimes: '#f59e0b', Rarely: '#22c55e', Never: '#3b82f6',
+};
+const ORDER_LABELS = ['Always','Often','Sometimes','Rarely','Never'];
 
-  const sectionsHTML = sections.map(s => {
+/** Build an inline SVG donut chart for one question's distribution */
+function buildSVGPie(distribution: DistEntry[], size = 110): string {
+  const cx = size / 2, cy = size / 2;
+  const R = size * 0.42, ir = size * 0.22;
+  const total = distribution.reduce((s, d) => s + d.count, 0);
+  if (total === 0) return `<svg width="${size}" height="${size}"><circle cx="${cx}" cy="${cy}" r="${R}" fill="#f1f5f9"/></svg>`;
+
+  let paths = '';
+  let start = -Math.PI / 2;
+  distribution.filter(d => d.count > 0).forEach(d => {
+    const angle = (d.count / total) * 2 * Math.PI;
+    const end = start + angle;
+    const x1 = cx + R * Math.cos(start), y1 = cy + R * Math.sin(start);
+    const x2 = cx + R * Math.cos(end),   y2 = cy + R * Math.sin(end);
+    const ix1 = cx + ir * Math.cos(start), iy1 = cy + ir * Math.sin(start);
+    const ix2 = cx + ir * Math.cos(end),   iy2 = cy + ir * Math.sin(end);
+    const large = angle > Math.PI ? 1 : 0;
+    paths += `<path d="M${ix1},${iy1} L${x1},${y1} A${R},${R},0,${large},1,${x2},${y2} L${ix2},${iy2} A${ir},${ir},0,${large},0,${ix1},${iy1}Z" fill="${FREQ_COLORS_MAP[d.label] ?? '#94a3b8'}"/>`;
+    start = end;
+  });
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${paths}</svg>`;
+}
+
+/** Build full print-ready HTML for a list of sections, with SVG pie charts */
+function buildPrintHTML(sections: SectionData[], title: string): string {
+  const date = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  const legendHTML = ORDER_LABELS.map(l =>
+    `<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;margin:2px 6px">
+      <span style="width:10px;height:10px;border-radius:50%;background:${FREQ_COLORS_MAP[l]};display:inline-block"></span>${l}
+    </span>`
+  ).join('');
+
+  const sectionsHTML = sections.map((s, si) => {
     const questionsHTML = s.questions.map((q, qi) => {
-      const barsHTML = ORDER.map(label => {
+      const dominant = q.distribution.reduce((mx, d) => d.count > mx.count ? d : mx, q.distribution[0]);
+      const pieSVG = buildSVGPie(q.distribution);
+
+      const barsHTML = ORDER_LABELS.map(label => {
         const d = q.distribution.find(x => x.label === label);
-        return `
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:11px">
-            <span style="width:60px;color:#64748b">${label}</span>
-            <div style="flex:1;background:#f1f5f9;border-radius:4px;height:8px;overflow:hidden">
-              <div style="width:${d?.percent??0}%;background:${COLORS[label]};height:8px;border-radius:4px"></div>
-            </div>
-            <span style="width:36px;text-align:right;color:#94a3b8">${d?.percent??0}%</span>
-            <span style="width:40px;text-align:right;color:#475569;font-weight:600">(${d?.count??0})</span>
-          </div>`;
+        return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;font-size:10px">
+          <span style="width:52px;color:#64748b;flex-shrink:0">${label}</span>
+          <div style="flex:1;background:#f1f5f9;border-radius:3px;height:7px;overflow:hidden">
+            <div style="width:${d?.percent ?? 0}%;background:${FREQ_COLORS_MAP[label]};height:7px;border-radius:3px"></div>
+          </div>
+          <span style="width:28px;text-align:right;color:#94a3b8">${d?.percent ?? 0}%</span>
+          <span style="width:34px;text-align:right;color:#475569;font-weight:600">(${d?.count ?? 0})</span>
+        </div>`;
       }).join('');
 
-      const dominant = q.distribution.reduce((max,d) => d.count > max.count ? d : max, q.distribution[0]);
-      return `
-        <div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px;break-inside:avoid;margin-bottom:12px">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-            <span style="background:#f1f5f9;color:#475569;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px">Q${qi+1}</span>
-            <p style="margin:0;font-size:12px;font-weight:600;color:#1e293b;flex:1">${q.question}</p>
+      return `<div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px;break-inside:avoid;margin-bottom:10px;background:#fff">
+        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:6px">
+          <span style="background:#f1f5f9;color:#475569;font-size:9px;font-weight:800;padding:2px 7px;border-radius:20px;white-space:nowrap;margin-top:1px">Q${qi+1}</span>
+          <p style="margin:0;font-size:11px;font-weight:700;color:#1e293b;line-height:1.4">${q.question}</p>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center">
+          <div style="flex-shrink:0">${pieSVG}</div>
+          <div style="flex:1">
+            <p style="margin:0 0 5px;font-size:10px;color:#94a3b8">
+              ${q.total} responses &nbsp;·&nbsp;
+              <strong style="color:${FREQ_COLORS_MAP[dominant?.label] ?? '#94a3b8'}">Most: ${dominant?.label} (${dominant?.percent}%)</strong>
+            </p>
+            ${barsHTML}
           </div>
-          <p style="margin:0 0 8px;font-size:11px;color:#94a3b8">${q.total} responses · Most common: <strong style="color:${COLORS[dominant?.label]??'#94a3b8'}">${dominant?.label} (${dominant?.percent}%)</strong></p>
-          ${barsHTML}
-        </div>`;
+        </div>
+      </div>`;
     }).join('');
 
-    return `
-      <div style="margin-bottom:28px;break-inside:avoid">
-        <h2 style="font-size:15px;font-weight:700;color:#1e293b;margin:0 0 4px;border-left:4px solid #6366f1;padding-left:10px">${s.section}</h2>
-        <p style="font-size:11px;color:#94a3b8;margin:0 0 12px;padding-left:14px">${s.questions.length} questions · ${s.totalAnswers.toLocaleString()} total responses</p>
-        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px">${questionsHTML}</div>
-      </div>`;
-  }).join('<hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0">');
-
-  return `<!DOCTYPE html><html><head><title>Frequency Analysis Report</title>
-    <style>*{box-sizing:border-box}body{font-family:system-ui,sans-serif;padding:24px;color:#1e293b;max-width:1100px;margin:0 auto}@media print{body{padding:0}@page{margin:20mm}}</style>
-    </head><body>
-    <div style="text-align:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #e2e8f0">
-      <h1 style="font-size:20px;font-weight:800;margin:0 0 6px">Frequency Analysis Report</h1>
-      <p style="font-size:12px;color:#64748b;margin:0">AYURGRAM 3.0: Swastha Indriya, Swastha India · ${sections.length} sections · Generated ${new Date().toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}</p>
-      <div style="display:flex;justify-content:center;gap:16px;margin-top:10px;flex-wrap:wrap">
-        ${ Object.entries(COLORS).map(([k,c]) =>
-          `<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600">
-            <span style="width:10px;height:10px;border-radius:50%;background:${c};display:inline-block"></span>${k}</span>`
-        ).join('') }
+    const sectionColor = ['#0ea5e9','#8b5cf6','#10b981','#ec4899','#f59e0b','#6366f1','#ef4444','#64748b'][si % 8];
+    return `<div style="margin-bottom:24px">
+      <div style="border-left:4px solid ${sectionColor};padding:8px 12px;background:${sectionColor}10;border-radius:0 8px 8px 0;margin-bottom:10px">
+        <h2 style="font-size:14px;font-weight:800;color:#1e293b;margin:0 0 2px">${s.section}</h2>
+        <p style="font-size:10px;color:#64748b;margin:0">${s.questions.length} questions · ${s.totalAnswers.toLocaleString()} total responses</p>
       </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">${questionsHTML}</div>
+    </div>
+    ${si < sections.length - 1 ? '<hr style="border:none;border-top:1px dashed #e2e8f0;margin:16px 0">' : ''}`;
+  }).join('');
+
+  return `<!DOCTYPE html><html><head><title>${title}</title>
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:20px;color:#1e293b;background:#fff}
+      @media print{body{padding:8px}@page{margin:12mm;size:A4}}
+    </style>
+    </head><body>
+    <div style="border-bottom:2px solid #e2e8f0;padding-bottom:14px;margin-bottom:18px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
+        <div>
+          <h1 style="font-size:18px;font-weight:900;color:#1e293b;margin:0 0 3px">${title}</h1>
+          <p style="font-size:11px;color:#64748b;margin:0">AYURGRAM 3.0: Swastha Indriya, Swastha India &nbsp;·&nbsp; Generated on ${date}</p>
+        </div>
+        <div style="text-align:right;font-size:10px;color:#94a3b8">
+          <p style="margin:0">${sections.length} section${sections.length > 1 ? 's' : ''}</p>
+          <p style="margin:0">${sections.reduce((s, sec) => s + sec.questions.length, 0)} questions</p>
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:2px">${legendHTML}</div>
     </div>
     ${sectionsHTML}
   </body></html>`;
@@ -105,14 +154,15 @@ export default function FrequencyDistributionChart() {
     queryFn: analyticsApi.getFrequencyDistribution,
   });
 
-  const handleDownloadPDF = useCallback((sections: SectionData[]) => {
-    const html = buildPrintHTML(sections);
-    const win = window.open('', '_blank', 'width=1100,height=800');
-    if (!win) return;
+  const openPrintWindow = useCallback((sections: SectionData[], title: string) => {
+    const html = buildPrintHTML(sections, title);
+    const win = window.open('', '_blank', 'width=1100,height=800,scrollbars=yes');
+    if (!win) { alert('Please allow popups to download PDF'); return; }
+    win.document.open();
     win.document.write(html);
     win.document.close();
-    win.focus();
-    setTimeout(() => { win.print(); }, 600);
+    win.addEventListener('load', () => { setTimeout(() => win.print(), 400); });
+    setTimeout(() => win.print(), 800);
   }, []);
 
   if (isLoading) {
