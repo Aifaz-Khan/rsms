@@ -201,15 +201,23 @@ export default function FrequencyDistributionChart() {
               Select a section below to explore. Yes / No questions are excluded.
               Total <strong>{sections.length} sections</strong> · <strong>{sections.reduce((s,sec)=>s+sec.questions.length,0)} questions</strong>.
             </p>
+          <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
+            <button
+              onClick={() => openPrintWindow([current], `Frequency Analysis: ${current.section}`)}
+              className="flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white rounded-lg shadow-sm transition-opacity hover:opacity-90"
+              style={{ backgroundColor: color }}
+            >
+              <Download className="w-3.5 h-3.5" />
+              This Section PDF
+            </button>
+            <button
+              onClick={() => openPrintWindow(sections, 'Frequency Analysis: All Sections')}
+              className="flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold bg-slate-700 text-white rounded-lg shadow-sm transition-opacity hover:opacity-90"
+            >
+              <Download className="w-3.5 h-3.5" />
+              All Sections PDF
+            </button>
           </div>
-          <button
-            onClick={() => handleDownloadPDF(sections)}
-            className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white rounded-lg shadow-sm transition-opacity hover:opacity-90"
-            style={{ backgroundColor: color }}
-          >
-            <Download className="w-3.5 h-3.5" />
-            Download PDF
-          </button>
         </div>
       </div>
 
