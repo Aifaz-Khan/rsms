@@ -259,8 +259,10 @@ export const getParticipantBreakdown = async (req: AuthRequest, res: Response, n
 
 /**
  * Returns frequency answer distribution (Always/Often/Sometimes/Rarely/Never)
- * grouped by survey section, with per-question percentages.
- * Yes/No answers are excluded.
+ * grouped by sense organ (Indriya) across all survey sections.
+ * Questions from professional/detailed assessment sections are all classified
+ * by keyword matching so every eye/ear/nose/tongue/skin question appears
+ * under the correct indriya tab regardless of which section it lives in.
  */
 export const getFrequencyDistribution = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -294,20 +296,86 @@ export const getFrequencyDistribution = async (req: AuthRequest, res: Response, 
       qMap[a.questionId][key] = (qMap[a.questionId][key] || 0) + 1;
     });
 
-    // Build section-grouped result
-    const bySectionTitle: {
-      section: string;
-      totalAnswers: number;
-      questions: { question: string; total: number; distribution: { label: string; count: number; percent: number }[] }[];
-    }[] = [];
+    // Classify a question title into an indriya group
+    function classifyIndriya(title: string): string {
+      const t = title.toLowerCase();
+      if (
+        t.includes('eye') || t.includes('vision') || t.includes('blurred') ||
+        t.includes('headlight') || t.includes('watering') || t.includes('goggle') ||
+        t.includes('cctv') || t.includes('computer screen') || t.includes('eye strain') ||
+        t.includes('eye irritation') || t.includes('eye examination') || t.includes('eye protection') ||
+        t.includes('seeing clearly') || t.includes('reading road signs') || t.includes('bright lights') ||
+        t.includes('night driving') || t.includes('screen') || t.includes('chakshu')
+      ) return 'Eyes (Chakshu)';
+
+      if (
+        t.includes('ear') || t.includes('hearing') || t.includes('ringing') ||
+        t.includes('tinnitus') || t.includes('buzzing') || t.includes('horns') ||
+        t.includes('loud noise') || t.includes('audiometry') || t.includes('shrotra') ||
+        t.includes('loud traffic') || t.includes('loud conversations') || t.includes('machinery')
+      ) return 'Ears (Karna)';
+
+      if (
+        t.includes('nose') || t.includes('nasal') || t.includes('smell') ||
+        t.includes('sneez') || t.includes('blockage') || t.includes('perfume') ||
+        t.includes('odour') || t.includes('fumes') || t.includes('incense') ||
+        t.includes('cold (running') || t.includes('ghrana') || t.includes('olfact') ||
+        t.includes('hot air') || t.includes('room freshener') || t.includes('chemical fumes') ||
+        t.includes('dust, smoke')
+      ) return 'Nose (Ghrana)';
+
+      if (
+        t.includes('tongue') || t.includes('taste') || t.includes('oral') ||
+        t.includes('mouth ulcer') || t.includes('tongue scraper') || t.includes('coating on') ||
+        t.includes('thirst') || t.includes('metallic taste') || t.includes('dryness of mouth') ||
+        t.includes('rasana') || t.includes('loss of taste') || t.includes('prolonged speaking')
+      ) return 'Tongue (Rasana)';
+
+      if (
+        t.includes('skin') || t.includes('itch') || t.includes('rash') ||
+        t.includes('dryness') || t.includes('glove') || t.includes('tingling') ||
+        t.includes('numbness') || t.includes('sanitizer') || t.includes('disinfect') ||
+        t.includes('extreme weather') || t.includes('hot or cold water') || t.includes('sparsha') ||
+        t.includes('bare hands') || t.includes('thorn') || t.includes('insect bite') ||
+        t.includes('wash your hand') || t.includes('wash your eyes') ||
+        t.includes('protective measures') || t.includes('sanitary precautions') ||
+        t.includes('mask while') || t.includes('garbage') || t.includes('chemicals with bare')
+      ) return 'Skin (Sparsha)';
+
+      if (
+        t.includes('mental') || t.includes('stress') || t.includes('focus') ||
+        t.includes('memory') || t.includes('concentration') || t.includes('forget') ||
+        t.includes('recall') || t.includes('meditation') || t.includes('yoga') ||
+        t.includes('anxiety') || t.includes('attentive') || t.includes('alert') ||
+        t.includes('sleep') || t.includes('tired') || t.includes('mistakes') ||
+        t.includes('reminders') || t.includes('mentally') || t.includes('pranayama') ||
+        t.includes('manas')
+      ) return 'Manas (Mind)';
+
+      if (
+        t.includes('physical activity') || t.includes('exercise') ||
+        t.includes('unhealthy') || t.includes('processed food') || t.includes('skip meals') ||
+        t.includes('irregular timing') || t.includes('pollutant') || t.includes('ayurvedic') ||
+        t.includes('lifestyle') || t.includes('breaks while using') || t.includes('digital devices')
+      ) return 'Risk Factors & Lifestyle';
+
+      return 'General';
+    }
+
+    // Group questions by indriya
+    const indriyas: Record<string, { question: string; total: number; distribution: { label: string; count: number; percent: number }[] }[]> = {};
 
     sections.forEach((s) => {
-      const freqQuestions = s.questions
-        .filter((q) => qMap[q.id] && Object.values(qMap[q.id]).some((v) => v > 0))
-        .map((q) => {
-          const dist = qMap[q.id];
-          const total = Object.values(dist).reduce((sum, v) => sum + v, 0);
-          return {
+      s.questions.forEach((q) => {
+        if (!qMap[q.id]) return;
+        const group = classifyIndriya(q.title);
+        const dist = qMap[q.id];
+        const total = Object.values(dist).reduce((sum, v) => sum + v, 0);
+        if (total === 0) return;
+        if (!indriyas[group]) indriyas[group] = [];
+        // Avoid duplicate question titles across sections
+        if (!indriyas[group].some((x) => x.question === q.title)) {
+          indriyas[group].push({
             question: q.title,
             total,
             distribution: ORDER.map((label) => ({
@@ -315,19 +383,22 @@ export const getFrequencyDistribution = async (req: AuthRequest, res: Response, 
               count: dist[label] ?? 0,
               percent: total > 0 ? Math.round(((dist[label] ?? 0) / total) * 100) : 0,
             })),
-          };
-        });
-
-      if (freqQuestions.length > 0) {
-        bySectionTitle.push({
-          section: s.title,
-          totalAnswers: freqQuestions.reduce((s, q) => s + q.total, 0),
-          questions: freqQuestions,
-        });
-      }
+          });
+        }
+      });
     });
 
-    res.json({ success: true, data: { bySectionTitle } });
+    // Ordered indriya output
+    const INDRIYA_ORDER = ['Eyes (Chakshu)', 'Ears (Karna)', 'Nose (Ghrana)', 'Tongue (Rasana)', 'Skin (Sparsha)', 'Manas (Mind)', 'Risk Factors & Lifestyle', 'General'];
+    const byIndriya = INDRIYA_ORDER
+      .filter((name) => indriyas[name] && indriyas[name].length > 0)
+      .map((name) => ({
+        section: name,
+        totalAnswers: indriyas[name].reduce((s, q) => s + q.total, 0),
+        questions: indriyas[name],
+      }));
+
+    res.json({ success: true, data: { bySectionTitle: byIndriya } });
   } catch (error) {
     next(error);
   }

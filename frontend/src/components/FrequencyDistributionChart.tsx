@@ -17,18 +17,7 @@ const ORDER = ['Always', 'Often', 'Sometimes', 'Rarely', 'Never'];
 
 // Short display labels for section tabs
 function shortSectionName(title: string): string {
-  const map: Record<string, string> = {
-    'Detailed Assessment of Chakshu Indriya': 'Eyes (Chakshu)',
-    'Detailed Assessment of Ghranendriya':    'Nose (Ghrana)',
-    'Detailed Assessment of Rasanendriya':    'Tongue (Rasana)',
-    'Detailed Assessment of Sparshanendriya': 'Skin (Sparsha)',
-    'MANAS ASSESSMENT':                       'Manas (Mind)',
-    'RISK FACTORS / CAUSATIVE FACTORS':       'Risk Factors',
-  };
-  if (map[title]) return map[title];
-  // Professional assessments
-  const prof = title.match(/Professional Assessment:\s*(.+)/i);
-  if (prof) return prof[1].trim();
+  // Already short indriya names — return as-is
   return title;
 }
 
@@ -36,19 +25,13 @@ function shortSectionName(title: string): string {
 function sectionColor(title: string): string {
   const t = title.toLowerCase();
   if (t.includes('chakshu') || t.includes('eye'))   return '#0ea5e9';
-  if (t.includes('ghrana') || t.includes('nose'))   return '#10b981';
-  if (t.includes('rasana') || t.includes('tongue')) return '#ec4899';
+  if (t.includes('karna')   || t.includes('ear'))   return '#8b5cf6';
+  if (t.includes('ghrana')  || t.includes('nose'))  return '#10b981';
+  if (t.includes('rasana')  || t.includes('tongue')) return '#ec4899';
   if (t.includes('sparsha') || t.includes('skin'))  return '#f59e0b';
-  if (t.includes('manas') || t.includes('mind'))    return '#8b5cf6';
-  if (t.includes('risk') || t.includes('factor'))   return '#ef4444';
-  // Professional
-  if (t.includes('nurse'))      return '#f472b6';
-  if (t.includes('driver'))     return '#14b8a6';
-  if (t.includes('watchmen'))   return '#f97316';
-  if (t.includes('receptionist')) return '#0ea5e9';
-  if (t.includes('gardener'))   return '#84cc16';
-  if (t.includes('sweeper') || t.includes('cleaner')) return '#64748b';
-  return '#6366f1';
+  if (t.includes('manas')   || t.includes('mind'))  return '#6366f1';
+  if (t.includes('risk')    || t.includes('lifestyle')) return '#ef4444';
+  return '#64748b';
 }
 
 interface DistEntry { label: string; count: number; percent: number; }
