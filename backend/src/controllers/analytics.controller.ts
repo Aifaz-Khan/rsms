@@ -259,52 +259,75 @@ export const getParticipantBreakdown = async (req: AuthRequest, res: Response, n
 
 /**
  * Returns frequency answer distribution (Always/Often/Sometimes/Rarely/Never)
- * per individual question with percentages. Yes/No answers are excluded.
+ * grouped by survey section, with per-question percentages.
+ * Yes/No answers are excluded.
  */
 export const getFrequencyDistribution = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const FREQ_VALUES = ['always', 'often', 'sometimes', 'rarely', 'never'];
     const ORDER = ['Always', 'Often', 'Sometimes', 'Rarely', 'Never'];
 
+    // Load all sections → questions in survey order
+    const sections = await prisma.section.findMany({
+      orderBy: { order: 'asc' },
+      include: {
+        questions: {
+          orderBy: { order: 'asc' },
+          select: { id: true, title: true, type: true },
+        },
+      },
+    });
+
+    // Load all RADIO answers with questionId
     const answers = await prisma.answer.findMany({
       where: { question: { type: 'RADIO' } },
-      include: { question: { select: { title: true } } },
+      select: { questionId: true, value: true },
     });
 
-    // Keep only frequency-type answers (not yes/no)
-    const freqAnswers = answers.filter((a) =>
-      FREQ_VALUES.includes(String(a.value).toLowerCase().trim())
-    );
-
-    // ── Build per-question map ────────────────────────────────────────────
-    const questionMap: Record<string, Record<string, number>> = {};
-
-    freqAnswers.forEach((a) => {
-      const title = a.question.title;
-      const val = String(a.value).trim();
-      const key = val.charAt(0).toUpperCase() + val.slice(1).toLowerCase();
-      if (!questionMap[title]) questionMap[title] = { Always: 0, Often: 0, Sometimes: 0, Rarely: 0, Never: 0 };
-      if (key in questionMap[title]) questionMap[title][key] += 1;
+    // Build questionId → frequency distribution map
+    const qMap: Record<string, Record<string, number>> = {};
+    answers.forEach((a) => {
+      const val = String(a.value).toLowerCase().trim();
+      if (!FREQ_VALUES.includes(val)) return;
+      const key = val.charAt(0).toUpperCase() + val.slice(1);
+      if (!qMap[a.questionId]) qMap[a.questionId] = { Always: 0, Often: 0, Sometimes: 0, Rarely: 0, Never: 0 };
+      qMap[a.questionId][key] = (qMap[a.questionId][key] || 0) + 1;
     });
 
-    // Convert to array with percentages, sorted by total responses descending
-    const perQuestion = Object.entries(questionMap)
-      .map(([question, dist]) => {
-        const total = Object.values(dist).reduce((s, v) => s + v, 0);
-        return {
-          question,
-          total,
-          distribution: ORDER.map((label) => ({
-            label,
-            count: dist[label] ?? 0,
-            percent: total > 0 ? Math.round(((dist[label] ?? 0) / total) * 100) : 0,
-          })),
-        };
-      })
-      .filter((q) => q.total > 0)
-      .sort((a, b) => b.total - a.total);
+    // Build section-grouped result
+    const bySectionTitle: {
+      section: string;
+      totalAnswers: number;
+      questions: { question: string; total: number; distribution: { label: string; count: number; percent: number }[] }[];
+    }[] = [];
 
-    res.json({ success: true, data: { perQuestion } });
+    sections.forEach((s) => {
+      const freqQuestions = s.questions
+        .filter((q) => qMap[q.id] && Object.values(qMap[q.id]).some((v) => v > 0))
+        .map((q) => {
+          const dist = qMap[q.id];
+          const total = Object.values(dist).reduce((sum, v) => sum + v, 0);
+          return {
+            question: q.title,
+            total,
+            distribution: ORDER.map((label) => ({
+              label,
+              count: dist[label] ?? 0,
+              percent: total > 0 ? Math.round(((dist[label] ?? 0) / total) * 100) : 0,
+            })),
+          };
+        });
+
+      if (freqQuestions.length > 0) {
+        bySectionTitle.push({
+          section: s.title,
+          totalAnswers: freqQuestions.reduce((s, q) => s + q.total, 0),
+          questions: freqQuestions,
+        });
+      }
+    });
+
+    res.json({ success: true, data: { bySectionTitle } });
   } catch (error) {
     next(error);
   }

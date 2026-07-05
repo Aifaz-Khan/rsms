@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { analyticsApi } from '../api';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
-import { Search } from 'lucide-react';
+import clsx from 'clsx';
 
 const FREQ_COLORS: Record<string, string> = {
   Always:    '#ef4444',
@@ -14,13 +14,48 @@ const FREQ_COLORS: Record<string, string> = {
 
 const ORDER = ['Always', 'Often', 'Sometimes', 'Rarely', 'Never'];
 
+// Short display labels for section tabs
+function shortSectionName(title: string): string {
+  const map: Record<string, string> = {
+    'Detailed Assessment of Chakshu Indriya': 'Eyes (Chakshu)',
+    'Detailed Assessment of Ghranendriya':    'Nose (Ghrana)',
+    'Detailed Assessment of Rasanendriya':    'Tongue (Rasana)',
+    'Detailed Assessment of Sparshanendriya': 'Skin (Sparsha)',
+    'MANAS ASSESSMENT':                       'Manas (Mind)',
+    'RISK FACTORS / CAUSATIVE FACTORS':       'Risk Factors',
+  };
+  if (map[title]) return map[title];
+  // Professional assessments
+  const prof = title.match(/Professional Assessment:\s*(.+)/i);
+  if (prof) return prof[1].trim();
+  return title;
+}
+
+// Colour for section tab header
+function sectionColor(title: string): string {
+  const t = title.toLowerCase();
+  if (t.includes('chakshu') || t.includes('eye'))   return '#0ea5e9';
+  if (t.includes('ghrana') || t.includes('nose'))   return '#10b981';
+  if (t.includes('rasana') || t.includes('tongue')) return '#ec4899';
+  if (t.includes('sparsha') || t.includes('skin'))  return '#f59e0b';
+  if (t.includes('manas') || t.includes('mind'))    return '#8b5cf6';
+  if (t.includes('risk') || t.includes('factor'))   return '#ef4444';
+  // Professional
+  if (t.includes('nurse'))      return '#f472b6';
+  if (t.includes('driver'))     return '#14b8a6';
+  if (t.includes('watchmen'))   return '#f97316';
+  if (t.includes('receptionist')) return '#0ea5e9';
+  if (t.includes('gardener'))   return '#84cc16';
+  if (t.includes('sweeper') || t.includes('cleaner')) return '#64748b';
+  return '#6366f1';
+}
+
 interface DistEntry { label: string; count: number; percent: number; }
 interface QuestionData { question: string; total: number; distribution: DistEntry[]; }
+interface SectionData  { section: string; totalAnswers: number; questions: QuestionData[]; }
 
 export default function FrequencyDistributionChart() {
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(0);
-  const PAGE_SIZE = 12;
+  const [activeSection, setActiveSection] = useState<number>(0);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['frequencyDistribution'],
@@ -40,27 +75,25 @@ export default function FrequencyDistributionChart() {
   }
 
   const responseData = data?.data?.data ?? data?.data ?? {};
-  const allQuestions: QuestionData[] = responseData.perQuestion ?? [];
+  const sections: SectionData[] = responseData.bySectionTitle ?? [];
 
-  const filtered = search.trim()
-    ? allQuestions.filter((q) => q.question.toLowerCase().includes(search.toLowerCase()))
-    : allQuestions;
+  if (sections.length === 0) {
+    return <div className="text-center text-sm text-slate-400 py-10">No frequency data available.</div>;
+  }
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const current = sections[activeSection];
+  const color   = sectionColor(current.section);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="card bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60 p-5 rounded-2xl">
-        <h3 className="text-base font-bold text-amber-900 mb-1">
-          Frequency Response Distribution — Per Question
+      <div className="card p-5 rounded-2xl" style={{ background: `linear-gradient(135deg, ${color}15, ${color}08)`, borderTop: `3px solid ${color}` }}>
+        <h3 className="text-base font-bold mb-1" style={{ color }}>
+          Frequency Response Distribution — Section-wise
         </h3>
-        <p className="text-xs text-amber-700 leading-relaxed">
-          One pie chart per frequency-type question showing the exact percentage split of
-          Always / Often / Sometimes / Rarely / Never responses.
-          Yes / No questions are excluded. Showing <strong>{filtered.length}</strong> of{' '}
-          <strong>{allQuestions.length}</strong> questions.
+        <p className="text-xs text-slate-500 leading-relaxed">
+          Showing one pie chart per frequency-type question, grouped by survey section.
+          Select a section below to explore. Yes / No questions are excluded.
         </p>
       </div>
 
@@ -76,50 +109,91 @@ export default function FrequencyDistributionChart() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-        <input
-          type="text"
-          placeholder="Search questions..."
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-          className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-400"
-        />
+      {/* Section selector tabs — scrollable on mobile */}
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+        {sections.map((s, i) => {
+          const col = sectionColor(s.section);
+          const isActive = i === activeSection;
+          return (
+            <button
+              key={i}
+              onClick={() => setActiveSection(i)}
+              className={clsx(
+                'flex-shrink-0 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 border',
+                isActive
+                  ? 'text-white shadow-md'
+                  : 'bg-white text-slate-600 hover:text-slate-900 border-slate-200 hover:border-slate-300'
+              )}
+              style={isActive ? { backgroundColor: col, borderColor: col } : {}}
+            >
+              <span>{shortSectionName(s.section)}</span>
+              <span
+                className={clsx('ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full font-bold',
+                  isActive ? 'bg-white/25' : 'bg-slate-100'
+                )}
+                style={isActive ? {} : { color: col }}
+              >
+                {s.questions.length}Q
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Grid of per-question pie charts */}
-      {paginated.length === 0 ? (
-        <div className="text-center text-sm text-slate-400 py-10">No questions match your search.</div>
-      ) : (
+      {/* Active section details */}
+      <div
+        className="rounded-2xl border p-4"
+        style={{ borderColor: `${color}40`, backgroundColor: `${color}06` }}
+      >
+        <div className="flex items-center justify-between mb-1">
+          <h4 className="text-sm font-bold" style={{ color }}>{current.section}</h4>
+          <span className="text-xs text-slate-400">
+            {current.questions.length} questions · {current.totalAnswers.toLocaleString()} total responses
+          </span>
+        </div>
+        <p className="text-[11px] text-slate-500 mb-4">
+          Each pie below shows how respondents in this section distributed their answers across the five frequency levels.
+        </p>
+
+        {/* Pie chart grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-          {paginated.map((item, idx) => {
+          {current.questions.map((item, idx) => {
             const pieData = item.distribution
               .filter((d) => d.count > 0)
               .map((d) => ({ name: d.label, value: d.count, percent: d.percent }));
 
-            // Find dominant response
-            const dominant = item.distribution.reduce((max, d) => d.count > max.count ? d : max, item.distribution[0]);
+            const dominant = item.distribution.reduce(
+              (max, d) => (d.count > max.count ? d : max),
+              item.distribution[0]
+            );
 
             return (
               <div
                 key={idx}
-                className="card flex flex-col items-center hover:shadow-md transition-shadow duration-200"
+                className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm flex flex-col items-center hover:shadow-md transition-shadow duration-200"
               >
-                {/* Question title */}
-                <p className="text-[11px] font-semibold text-slate-700 text-center leading-snug mb-1 line-clamp-3 w-full">
-                  {item.question}
-                </p>
-                <span className="text-[10px] text-slate-400 mb-2">{item.total} responses</span>
+                {/* Question number badge + title */}
+                <div className="w-full mb-2 flex items-start gap-2">
+                  <span
+                    className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5"
+                    style={{ backgroundColor: `${color}20`, color }}
+                  >
+                    Q{idx + 1}
+                  </span>
+                  <p className="text-[11px] font-semibold text-slate-700 leading-snug line-clamp-3">
+                    {item.question}
+                  </p>
+                </div>
+                <span className="text-[10px] text-slate-400 mb-1">{item.total} responses</span>
 
                 {/* Donut pie */}
-                <ResponsiveContainer width="100%" height={160}>
+                <ResponsiveContainer width="100%" height={150}>
                   <PieChart>
                     <Pie
                       data={pieData}
                       cx="50%" cy="50%"
-                      outerRadius={62}
-                      innerRadius={32}
+                      outerRadius={58}
+                      innerRadius={28}
                       paddingAngle={2}
                       dataKey="value"
                     >
@@ -137,14 +211,16 @@ export default function FrequencyDistributionChart() {
                 </ResponsiveContainer>
 
                 {/* Dominant answer badge */}
-                <div
-                  className="text-[10px] font-bold text-white px-2 py-0.5 rounded-full mb-2"
-                  style={{ backgroundColor: FREQ_COLORS[dominant?.label] ?? '#94a3b8' }}
-                >
-                  Most common: {dominant?.label} ({dominant?.percent}%)
-                </div>
+                {dominant && (
+                  <div
+                    className="text-[10px] font-bold text-white px-2 py-0.5 rounded-full mb-2"
+                    style={{ backgroundColor: FREQ_COLORS[dominant.label] ?? '#94a3b8' }}
+                  >
+                    Most: {dominant.label} ({dominant.percent}%)
+                  </div>
+                )}
 
-                {/* Mini percentage bars */}
+                {/* Mini progress bars */}
                 <div className="w-full space-y-1 px-1">
                   {ORDER.map((label) => {
                     const d = item.distribution.find((x) => x.label === label);
@@ -154,7 +230,10 @@ export default function FrequencyDistributionChart() {
                         <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
                           <div
                             className="h-1.5 rounded-full transition-all duration-500"
-                            style={{ width: `${d?.percent ?? 0}%`, backgroundColor: FREQ_COLORS[label] }}
+                            style={{
+                              width: `${d?.percent ?? 0}%`,
+                              backgroundColor: FREQ_COLORS[label],
+                            }}
                           />
                         </div>
                         <span className="w-8 text-right text-slate-400">{d?.percent ?? 0}%</span>
@@ -166,30 +245,28 @@ export default function FrequencyDistributionChart() {
             );
           })}
         </div>
-      )}
+      </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 pt-2">
-          <button
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-            disabled={page === 0}
-            className="px-3 py-1.5 text-xs font-medium rounded-md border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors"
-          >
-            Previous
-          </button>
-          <span className="text-xs text-slate-500">
-            Page {page + 1} of {totalPages} ({filtered.length} questions)
-          </span>
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-            disabled={page === totalPages - 1}
-            className="px-3 py-1.5 text-xs font-medium rounded-md border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors"
-          >
-            Next
-          </button>
-        </div>
-      )}
+      {/* Bottom section navigator */}
+      <div className="flex items-center justify-between pt-1">
+        <button
+          onClick={() => setActiveSection((p) => Math.max(0, p - 1))}
+          disabled={activeSection === 0}
+          className="px-4 py-1.5 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors"
+        >
+          ← Previous section
+        </button>
+        <span className="text-xs text-slate-400">
+          {activeSection + 1} / {sections.length} sections
+        </span>
+        <button
+          onClick={() => setActiveSection((p) => Math.min(sections.length - 1, p + 1))}
+          disabled={activeSection === sections.length - 1}
+          className="px-4 py-1.5 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors"
+        >
+          Next section →
+        </button>
+      </div>
     </div>
   );
 }
