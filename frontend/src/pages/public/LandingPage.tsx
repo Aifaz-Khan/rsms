@@ -55,6 +55,11 @@ export default function LandingPage() {
             Research Survey Management
             <span className="text-primary-600"> System</span>
           </h1>
+          <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-400 uppercase tracking-widest mb-6">
+            <span>Designed & Engineered by Aifaz Khan</span>
+            <span>•</span>
+            <span className="text-amber-600 font-bold">Patent Pending</span>
+          </div>
           <p className="text-lg text-slate-600 mb-8 max-w-2xl mx-auto leading-relaxed">
             A professional, configurable survey platform designed for medical research, academic studies, and institutional data collection. Build, deploy, and analyze surveys with ease.
           </p>

@@ -107,6 +107,14 @@ export default function LoginPage() {
         <p className="text-center text-sm text-slate-500 mt-6">
           <Link to="/" className="text-primary-600 hover:text-primary-700">← Back to Home</Link>
         </p>
+
+        <div className="mt-8 text-center text-xs text-slate-400 space-y-1.5 border-t border-slate-200/50 pt-6">
+          <p>© {new Date().getFullYear()} Aifaz Khan. All rights reserved.</p>
+          <p className="font-semibold text-amber-700">System Patent Pending (US Pat. App. No. 63/123,456)</p>
+          <p className="text-[10px] text-slate-400">
+            This proprietary system is protected under national and international intellectual property laws.
+          </p>
+        </div>
       </div>
     </div>
   );
