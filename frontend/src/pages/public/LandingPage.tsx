@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Shield, BarChart3, Users, Clock, CheckCircle, ChevronDown } from 'lucide-react';
+import { ArrowRight, Shield, BarChart3, Users, Clock, CheckCircle, ChevronDown, Mail, Phone } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { surveyApi } from '../../api';
@@ -242,25 +242,77 @@ export default function LandingPage() {
       </section>
 
       {/* Contact */}
-      <section id="contact" className="bg-primary-600 py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold text-white mb-4">Ready to Start Your Research?</h2>
-          <p className="text-primary-100 mb-8 max-w-xl mx-auto">
-            Contact us to set up your research survey or participate in our ongoing Ayurvedic Medical Research Study.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            {activeSurveys.length > 0 ? (
-              <Link to={`/survey/${activeSurveys[0].slug}`} className="inline-flex items-center gap-2 px-6 py-3 bg-white text-primary-700 font-medium rounded-lg hover:bg-primary-50 transition-colors">
-                Participate in Survey <ArrowRight className="w-4 h-4" />
-              </Link>
-            ) : (
-              <a href="#surveys" className="inline-flex items-center gap-2 px-6 py-3 bg-white text-primary-700 font-medium rounded-lg hover:bg-primary-50 transition-colors">
-                View Active Surveys <ArrowRight className="w-4 h-4" />
-              </a>
-            )}
-            <a href="mailto:contact@rsms.com" className="inline-flex items-center gap-2 px-6 py-3 border border-primary-400 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors">
-              Contact Us
-            </a>
+      <section id="contact" className="bg-primary-600 py-16 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold mb-4">Ready to Start Your Research?</h2>
+            <p className="text-primary-100 max-w-xl mx-auto">
+              Contact us to set up your research survey or participate in our ongoing Ayurvedic Medical Research Study.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto items-stretch">
+            {/* Quick Actions */}
+            <div className="bg-primary-700/40 border border-primary-500/30 rounded-2xl p-8 flex flex-col justify-between">
+              <div>
+                <h3 className="text-xl font-bold mb-3">Participation & Access</h3>
+                <p className="text-primary-100 text-sm leading-relaxed mb-6">
+                  Select a live research survey to participate or log in as an administrator to construct and manage studies.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                {activeSurveys.length > 0 ? (
+                  <Link to={`/survey/${activeSurveys[0].slug}`} className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-white text-primary-700 font-semibold rounded-lg hover:bg-primary-50 transition-colors text-sm">
+                    Participate <ArrowRight className="w-4 h-4" />
+                  </Link>
+                ) : (
+                  <a href="#surveys" className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-white text-primary-700 font-semibold rounded-lg hover:bg-primary-50 transition-colors text-sm">
+                    View Surveys <ArrowRight className="w-4 h-4" />
+                  </a>
+                )}
+                <Link to="/login" className="inline-flex items-center justify-center gap-2 px-5 py-2.5 border border-primary-400 text-white font-semibold rounded-lg hover:bg-primary-700 transition-colors text-sm">
+                  Admin Portal
+                </Link>
+              </div>
+            </div>
+
+            {/* Direct Contact (Aifaz Khan) */}
+            <div className="bg-white text-slate-800 rounded-2xl p-8 shadow-lg flex flex-col justify-between border border-slate-100">
+              <div>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-100 text-xs font-semibold rounded-full w-fit mb-4">
+                  Platform Administration
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-1">Aifaz Khan</h3>
+                <p className="text-sm text-slate-500 mb-6 font-medium">Lead Developer & Systems Administrator</p>
+                
+                <div className="space-y-4">
+                  <a href="mailto:khanaifaz1920@gmail.com" className="flex items-center gap-3 text-slate-600 hover:text-primary-600 transition-colors group">
+                    <div className="w-9 h-9 bg-slate-50 rounded-lg flex items-center justify-center group-hover:bg-primary-50 transition-colors">
+                      <Mail className="w-4 h-4 text-slate-500 group-hover:text-primary-600" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Email Address</p>
+                      <p className="text-sm font-semibold">khanaifaz1920@gmail.com</p>
+                    </div>
+                  </a>
+
+                  <a href="tel:7738450306" className="flex items-center gap-3 text-slate-600 hover:text-primary-600 transition-colors group">
+                    <div className="w-9 h-9 bg-slate-50 rounded-lg flex items-center justify-center group-hover:bg-primary-50 transition-colors">
+                      <Phone className="w-4 h-4 text-slate-500 group-hover:text-primary-600" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Phone / WhatsApp</p>
+                      <p className="text-sm font-semibold">+91 77384 50306</p>
+                    </div>
+                  </a>
+                </div>
+              </div>
+
+              <div className="text-[11px] text-slate-400 mt-6 border-t border-slate-100 pt-4 flex items-center justify-between">
+                <span>Response Time: &lt; 24 Hours</span>
+                <span>UTC+5:30 (IST)</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
