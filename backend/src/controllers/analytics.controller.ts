@@ -323,6 +323,32 @@ export const getSurveyAnalytics = async (req: AuthRequest, res: Response, next: 
       complaintRate: total > 0 ? Math.round((yes / total) * 100) : 0,
     }));
 
+    // Self-reported most affected sense / care needed question answers
+    const selfReportedCount: Record<string, number> = { Eyes: 0, Ears: 0, Nose: 0, Tongue: 0, Skin: 0 };
+    survey.sections.forEach(sec => {
+      sec.questions.forEach(q => {
+        const t = q.title.toLowerCase();
+        if (t.includes('most care') || t.includes('most attention') || t.includes('most affected') || t.includes('needs the most')) {
+          q.answers.forEach(a => {
+            const val = String(a.value).toLowerCase().trim();
+            if (val.includes('eye') || val.includes('chakshu')) selfReportedCount.Eyes++;
+            else if (val.includes('ear') || val.includes('shrotra')) selfReportedCount.Ears++;
+            else if (val.includes('nose') || val.includes('ghrana')) selfReportedCount.Nose++;
+            else if (val.includes('tongue') || val.includes('rasana')) selfReportedCount.Tongue++;
+            else if (val.includes('skin') || val.includes('sparsha')) selfReportedCount.Skin++;
+          });
+        }
+      });
+    });
+
+    const selfReportedSense = [
+      { name: 'Eyes', value: selfReportedCount.Eyes, color: '#0ea5e9' },
+      { name: 'Ears', value: selfReportedCount.Ears, color: '#8b5cf6' },
+      { name: 'Nose', value: selfReportedCount.Nose, color: '#10b981' },
+      { name: 'Tongue', value: selfReportedCount.Tongue, color: '#ec4899' },
+      { name: 'Skin', value: selfReportedCount.Skin, color: '#f59e0b' },
+    ];
+
     res.json({
       success: true,
       data: {
@@ -334,6 +360,7 @@ export const getSurveyAnalytics = async (req: AuthRequest, res: Response, next: 
         },
         ageDistribution,
         sensoryComplaintRates,
+        selfReportedSense,
         questionAnalysis,
         sectionCompletion,
         responseTrend,
@@ -479,6 +506,35 @@ export const getFrequencyDistribution = async (req: AuthRequest, res: Response, 
       qMap[a.questionId][key] = (qMap[a.questionId][key] || 0) + 1;
     });
 
+    // Option 1: Group by actual DB Survey Sections
+    const bySectionTitle = sections
+      .map((s) => {
+        const validQs = s.questions
+          .filter((q) => qMap[q.id])
+          .map((q) => {
+            const dist = qMap[q.id];
+            const total = Object.values(dist).reduce((sum, v) => sum + v, 0);
+            return {
+              question: q.title,
+              total,
+              distribution: ORDER.map((label) => ({
+                label,
+                count: dist[label] ?? 0,
+                percent: total > 0 ? Math.round(((dist[label] ?? 0) / total) * 100) : 0,
+              })),
+            };
+          })
+          .filter((q) => q.total > 0);
+
+        return {
+          section: s.title,
+          totalAnswers: validQs.reduce((s, q) => s + q.total, 0),
+          questions: validQs,
+        };
+      })
+      .filter((s) => s.questions.length > 0);
+
+    // Option 2: Group by Indriya
     const indriyas: Record<string, { question: string; total: number; distribution: { label: string; count: number; percent: number }[] }[]> = {};
 
     sections.forEach((s) => {
@@ -512,7 +568,13 @@ export const getFrequencyDistribution = async (req: AuthRequest, res: Response, 
         questions: indriyas[name],
       }));
 
-    res.json({ success: true, data: { bySectionTitle: byIndriya } });
+    res.json({
+      success: true,
+      data: {
+        bySectionTitle,
+        byIndriya,
+      },
+    });
   } catch (error) {
     next(error);
   }

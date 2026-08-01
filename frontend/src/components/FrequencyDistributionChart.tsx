@@ -147,6 +147,7 @@ function buildPrintHTML(sections: SectionData[], title: string): string {
 }
 
 export default function FrequencyDistributionChart() {
+  const [groupBy, setGroupBy] = useState<'section' | 'indriya'>('section');
   const [activeSection, setActiveSection] = useState<number>(0);
 
   const { data, isLoading, error } = useQuery({
@@ -178,34 +179,59 @@ export default function FrequencyDistributionChart() {
   }
 
   const responseData = data?.data?.data ?? data?.data ?? {};
-  const sections: SectionData[] = responseData.bySectionTitle ?? [];
+  const sectionGroups: SectionData[] = responseData.bySectionTitle ?? [];
+  const indriyaGroups: SectionData[] = responseData.byIndriya ?? [];
+
+  const sections: SectionData[] = groupBy === 'section'
+    ? (sectionGroups.length > 0 ? sectionGroups : indriyaGroups)
+    : (indriyaGroups.length > 0 ? indriyaGroups : sectionGroups);
 
   if (sections.length === 0) {
     return <div className="text-center text-sm text-slate-400 py-10">No frequency data available.</div>;
   }
 
-  const current = sections[activeSection];
+  const safeActiveSection = Math.min(activeSection, sections.length - 1);
+  const current = sections[safeActiveSection] || sections[0];
   const color   = sectionColor(current.section);
 
   return (
     <div className="space-y-5">
       {/* Header */}
       <div className="card p-5 rounded-2xl" style={{ background: `linear-gradient(135deg, ${color}15, ${color}08)`, borderTop: `3px solid ${color}` }}>
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1">
-            <h3 className="text-base font-bold mb-1" style={{ color }}>
-              Frequency Response Distribution — Section-wise
-            </h3>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex-1 min-w-[280px]">
+            <div className="flex items-center gap-3 mb-1">
+              <h3 className="text-base font-bold" style={{ color }}>
+                Frequency Response Distribution — {groupBy === 'section' ? 'By Survey Section' : 'By Sense Organ (Indriya)'}
+              </h3>
+            </div>
             <p className="text-xs text-slate-500 leading-relaxed">
-              One pie chart per frequency-type question, grouped by survey section.
-              Select a section below to explore. Yes / No questions are excluded.
-              Total <strong>{sections.length} sections</strong> · <strong>{sections.reduce((s,sec)=>s+sec.questions.length,0)} questions</strong>.
+              Real response counts and percentages from <strong>Level 2 survey responses</strong> in the database.
+              Showing exact counts for Always, Often, Sometimes, Rarely, and Never responses.
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="bg-white/80 backdrop-blur-sm p-1 rounded-xl border border-slate-200 flex gap-1">
+              <button
+                onClick={() => { setGroupBy('section'); setActiveSection(0); }}
+                className={clsx('px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors',
+                  groupBy === 'section' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                )}
+              >
+                Survey Sections ({sectionGroups.length})
+              </button>
+              <button
+                onClick={() => { setGroupBy('indriya'); setActiveSection(0); }}
+                className={clsx('px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors',
+                  groupBy === 'indriya' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                )}
+              >
+                Sense Organs ({indriyaGroups.length})
+              </button>
+            </div>
             <button
               onClick={() => openPrintWindow([current], `Frequency Analysis: ${current.section}`)}
-              className="flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white rounded-lg shadow-sm transition-opacity hover:opacity-90"
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white rounded-lg shadow-sm transition-opacity hover:opacity-90"
               style={{ backgroundColor: color }}
             >
               <Download className="w-3.5 h-3.5" />
@@ -213,10 +239,10 @@ export default function FrequencyDistributionChart() {
             </button>
             <button
               onClick={() => openPrintWindow(sections, 'Frequency Analysis: All Sections')}
-              className="flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold bg-slate-700 text-white rounded-lg shadow-sm transition-opacity hover:opacity-90"
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-slate-700 text-white rounded-lg shadow-sm transition-opacity hover:opacity-90"
             >
               <Download className="w-3.5 h-3.5" />
-              All Sections PDF
+              All PDF
             </button>
           </div>
         </div>
@@ -346,13 +372,13 @@ export default function FrequencyDistributionChart() {
                   </div>
                 )}
 
-                {/* Mini progress bars */}
-                <div className="w-full space-y-1 px-1">
+                {/* Mini progress bars with exact counts */}
+                <div className="w-full space-y-1.5 px-1">
                   {ORDER.map((label) => {
                     const d = item.distribution.find((x) => x.label === label);
                     return (
                       <div key={label} className="flex items-center gap-2 text-[10px]">
-                        <span className="w-14 text-slate-500 font-medium text-left">{label}</span>
+                        <span className="w-16 text-slate-500 font-medium text-left">{label}</span>
                         <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
                           <div
                             className="h-1.5 rounded-full transition-all duration-500"
@@ -362,7 +388,9 @@ export default function FrequencyDistributionChart() {
                             }}
                           />
                         </div>
-                        <span className="w-8 text-right text-slate-400">{d?.percent ?? 0}%</span>
+                        <span className="text-right text-slate-600 font-semibold min-w-[70px]">
+                          {d?.count ?? 0} <span className="text-slate-400 font-normal">({d?.percent ?? 0}%)</span>
+                        </span>
                       </div>
                     );
                   })}

@@ -181,26 +181,34 @@ export default function AnalyticsPage() {
     { name: 'Chronic illness', value: getYesRate('Chronic / Congenital'), color: '#10b981', insight: 'Pre-existing conditions needing priority care' },
   ].filter(d => d.value > 0);
 
-  // --- Self-reported most affected sense (from multiple profession-specific questions) ---
-  const selfReportedSense = [
-    { name: 'Eyes', value: 0, color: '#0ea5e9' },
-    { name: 'Ears', value: 0, color: '#8b5cf6' },
-    { name: 'Nose', value: 0, color: '#10b981' },
-    { name: 'Tongue', value: 0, color: '#ec4899' },
-    { name: 'Skin', value: 0, color: '#f59e0b' },
-  ];
-  questionAnalysis?.filter((qa: any) => qa.questionTitle.toLowerCase().includes('most affected')).forEach((qa: any) => {
-    Object.entries(qa.distribution || {}).forEach(([key, count]) => {
-      const lower = key.toLowerCase();
-      const n = Number(count);
-      if (lower.includes('eye') || lower.includes('chakshu')) selfReportedSense[0].value += n;
-      else if (lower.includes('ear') || lower.includes('shrotra')) selfReportedSense[1].value += n;
-      else if (lower.includes('nose') || lower.includes('ghrana')) selfReportedSense[2].value += n;
-      else if (lower.includes('tongue') || lower.includes('rasana')) selfReportedSense[3].value += n;
-      else if (lower.includes('skin') || lower.includes('touch') || lower.includes('sparsha')) selfReportedSense[4].value += n;
-    });
+  // --- Self-reported most affected sense (from care/attention/affected questions) ---
+  const selfReportedCount: Record<string, number> = { Eyes: 0, Ears: 0, Nose: 0, Tongue: 0, Skin: 0 };
+  questionAnalysis?.forEach((qa: any) => {
+    const t = qa.questionTitle.toLowerCase();
+    if (t.includes('most care') || t.includes('most attention') || t.includes('most affected') || t.includes('needs the most')) {
+      Object.entries(qa.distribution || {}).forEach(([key, count]) => {
+        const lower = key.toLowerCase();
+        const n = Number(count);
+        if (lower.includes('eye') || lower.includes('chakshu')) selfReportedCount.Eyes += n;
+        else if (lower.includes('ear') || lower.includes('shrotra')) selfReportedCount.Ears += n;
+        else if (lower.includes('nose') || lower.includes('ghrana')) selfReportedCount.Nose += n;
+        else if (lower.includes('tongue') || lower.includes('rasana')) selfReportedCount.Tongue += n;
+        else if (lower.includes('skin') || lower.includes('sparsha')) selfReportedCount.Skin += n;
+      });
+    }
   });
-  const selfTotal = selfReportedSense.reduce((s, d) => s + d.value, 0) || 1;
+
+  const selfReportedSenseData = analytics.selfReportedSense && Array.isArray(analytics.selfReportedSense) && analytics.selfReportedSense.some((d: any) => d.value > 0)
+    ? analytics.selfReportedSense
+    : [
+        { name: 'Eyes', value: selfReportedCount.Eyes, color: '#0ea5e9' },
+        { name: 'Ears', value: selfReportedCount.Ears, color: '#8b5cf6' },
+        { name: 'Nose', value: selfReportedCount.Nose, color: '#10b981' },
+        { name: 'Tongue', value: selfReportedCount.Tongue, color: '#ec4899' },
+        { name: 'Skin', value: selfReportedCount.Skin, color: '#f59e0b' },
+      ];
+
+  const selfTotal = selfReportedSenseData.reduce((s: number, d: any) => s + d.value, 0) || 1;
 
   return (
     <div className="space-y-6">
@@ -511,20 +519,20 @@ export default function AnalyticsPage() {
             </div>
 
             <div className="card">
-              <h3 className="font-semibold text-slate-800 text-sm mb-1">6. Self-Reported Most Affected Sense</h3>
-              <p className="text-xs text-slate-400 mb-4">What participants themselves feel is their most impacted sense organ — corroborates the clinical screening data.</p>
+              <h3 className="font-semibold text-slate-800 text-sm mb-1">6. Self-Reported Most Affected Sense / Care Needed</h3>
+              <p className="text-xs text-slate-400 mb-4">What participants feel needs the most care or attention in their sensory health — corroborates clinical screening data ({selfTotal} total responses).</p>
               <div className="flex items-center justify-center" style={{ height: 220 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={selfReportedSense.filter(d => d.value > 0).map(d => ({ ...d, pct: Math.round(d.value/selfTotal*100) }))}
+                      data={selfReportedSenseData.filter((d: any) => d.value > 0).map((d: any) => ({ ...d, pct: Math.round((d.value / selfTotal) * 100) }))}
                       cx="50%" cy="45%" outerRadius={80} innerRadius={40} paddingAngle={3}
                       dataKey="value"
                       label={({ name, pct }) => `${name} ${pct}%`} labelLine={false}
                     >
-                      {selfReportedSense.filter(d=>d.value>0).map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+                      {selfReportedSenseData.filter((d: any) => d.value > 0).map((entry: any) => <Cell key={entry.name} fill={entry.color} />)}
                     </Pie>
-                    <Tooltip formatter={(v: number) => [`${v} (${Math.round(v/selfTotal*100)}%)`, 'Respondents']} />
+                    <Tooltip formatter={(v: number) => [`${v} respondents (${Math.round((v / selfTotal) * 100)}%)`, 'Count']} />
                     <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: 11 }} />
                   </PieChart>
                 </ResponsiveContainer>
