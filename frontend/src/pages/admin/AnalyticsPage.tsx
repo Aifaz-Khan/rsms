@@ -58,11 +58,15 @@ export default function AnalyticsPage() {
     );
   }
 
-  const { overview, questionAnalysis, sectionCompletion, responseTrend } = analytics;
+  const { overview, questionAnalysis, sectionCompletion, responseTrend, ageDistribution, sensoryComplaintRates } = analytics;
 
   // --- Dynamic Medical Camp Insights Calculations ---
-  // Finds a question by keyword match and returns % of 'yes' answers — fully data-driven, no hardcoded fallbacks
-  const getComplaintRate = (titleKeywords: string[]) => {
+  // Uses exact sensory complaint rates from backend analytics if available, fallback to question keyword match
+  const getComplaintRate = (senseName: string, titleKeywords: string[]) => {
+    if (sensoryComplaintRates && Array.isArray(sensoryComplaintRates)) {
+      const match = sensoryComplaintRates.find((s: any) => s.sense.toLowerCase() === senseName.toLowerCase());
+      if (match && match.complaintRate !== undefined) return match.complaintRate;
+    }
     const q = questionAnalysis?.find((qa: any) =>
       titleKeywords.every(k => qa.questionTitle.toLowerCase().includes(k.toLowerCase()))
     );
@@ -72,16 +76,11 @@ export default function AnalyticsPage() {
     return Math.round((yesCount / total) * 100);
   };
 
-  // Real keyword matches from actual survey question titles in the database
-  const eyeRate = getComplaintRate(['eye-related complaints']);
-  const noseRate = Math.max(
-    getComplaintRate(['nasal blockage or obstruction']),
-    getComplaintRate(['reduction or loss', 'smell']),
-    getComplaintRate(['nasal dryness'])
-  );
-  const tongueRate = getComplaintRate(['difficulty identifying', 'six tastes']);
-  const skinRate = getComplaintRate(['chronic skin disorders']);
-  const earRate = getComplaintRate(['ear related complaint']);
+  const eyeRate = getComplaintRate('Eyes', ['eye']);
+  const noseRate = getComplaintRate('Nose', ['nose', 'nasal']);
+  const tongueRate = getComplaintRate('Tongue', ['tongue', 'taste']);
+  const skinRate = getComplaintRate('Skin', ['skin', 'itch']);
+  const earRate = getComplaintRate('Ears', ['ear', 'hearing']);
 
   const radarData = [
     { subject: 'Eyes (Chakshu)', A: eyeRate, fullMark: 100 },
@@ -129,7 +128,7 @@ export default function AnalyticsPage() {
     { name: 'Karna Purana (Ear station)', value: Math.round((earRate / sumRates) * 100), color: '#f59e0b' },
   ];
 
-  // --- Age distribution from real data ---
+  // --- Age distribution from structured backend data ---
   const getDistribution = (titleKeyword: string) => {
     const q = questionAnalysis?.find((qa: any) => qa.questionTitle.toLowerCase().includes(titleKeyword.toLowerCase()));
     if (!q) return [];
@@ -141,7 +140,9 @@ export default function AnalyticsPage() {
     }));
   };
 
-  const ageData = getDistribution('Age').sort((a, b) => a.name.localeCompare(b.name));
+  const ageData = ageDistribution && Array.isArray(ageDistribution) && ageDistribution.length > 0
+    ? ageDistribution
+    : getDistribution('Age').sort((a, b) => a.name.localeCompare(b.name));
   // Normalise gender names and merge duplicates (e.g. "Male" + "male" → single "Male" entry)
   const genderRaw = getDistribution('Gender').map(d => ({
     ...d,

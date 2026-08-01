@@ -7,27 +7,35 @@ import {
 import { Users, GraduationCap, BookOpen, Briefcase, UserCheck } from 'lucide-react';
 
 const TYPE_COLORS: Record<string, string> = {
-  Student:       '#0ea5e9',
-  'Teaching Staff': '#8b5cf6',
-  Intern:        '#f59e0b',
-  Receptionist:  '#10b981',
-  Nurse:         '#ec4899',
-  Cleaner:       '#64748b',
-  Watchmen:      '#f97316',
-  Driver:        '#14b8a6',
-  Gardener:      '#84cc16',
+  'Class 5th-10th Student':     '#0ea5e9',
+  'Class 1st-4th Student':      '#38bdf8',
+  'PUC / High School Student':  '#6366f1',
+  'Engineering / UG Student':   '#8b5cf6',
+  'Married Women':              '#ec4899',
+  'Unmarried Women':            '#f472b6',
+  'Pediatric (Below 5 Yrs)':   '#10b981',
+  'Shopkeeper':                 '#f59e0b',
+  'Beedi Roller':               '#f97316',
+  'Teacher':                    '#14b8a6',
+  'NGO Worker':                 '#84cc16',
+  'Healthcare Worker':          '#ef4444',
+  'General / Other':            '#64748b',
 };
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
-  Student:          <BookOpen className="w-4 h-4" />,
-  'Teaching Staff': <GraduationCap className="w-4 h-4" />,
-  Intern:           <UserCheck className="w-4 h-4" />,
+  'Class 5th-10th Student':    <BookOpen className="w-4 h-4" />,
+  'Class 1st-4th Student':     <BookOpen className="w-4 h-4" />,
+  'PUC / High School Student': <GraduationCap className="w-4 h-4" />,
+  'Engineering / UG Student':  <GraduationCap className="w-4 h-4" />,
+  'Teacher':                   <GraduationCap className="w-4 h-4" />,
+  'Healthcare Worker':         <UserCheck className="w-4 h-4" />,
 };
 
 // Group types into categories for display
 const CATEGORY_GROUPS: Record<string, string[]> = {
-  'Academic':      ['Student', 'Teaching Staff', 'Intern'],
-  'Non-Teaching Staff': ['Receptionist', 'Nurse', 'Cleaner', 'Watchmen', 'Driver', 'Gardener'],
+  'Students & Youth': ['Class 5th-10th Student', 'Class 1st-4th Student', 'PUC / High School Student', 'Engineering / UG Student'],
+  'Community & Women': ['Married Women', 'Unmarried Women', 'Pediatric (Below 5 Yrs)', 'General / Other'],
+  'Occupations & Trades': ['Shopkeeper', 'Beedi Roller', 'Teacher', 'NGO Worker', 'Healthcare Worker'],
 };
 
 interface ParticipantEntry {
